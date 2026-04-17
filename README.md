@@ -90,16 +90,109 @@ FastAPIStarter
 > Note that the file env.example provides a default set of configuration values for this application. you **MUST** create a copy of this file named `.env` before launching the app. The preconfigured environment allows a user to have an app that uses a sqlite database for a datastore as well as some other default configurations. The values in this should ideally be modified for production. For more possible variables, check out the `config.py` file
 
 
+## Database Migrations (Alembic)
+
+This project uses **Alembic** for database migrations, allowing you to version-control your database schema changes safely.
+
+### Setup
+
+Alembic is already configured in this project. To start fresh:
+
+```bash
+# Install alembic (if not already installed)
+pip install alembic
+
+# Initialize alembic (already done - skip if migrations folder exists)
+alembic init migrations
+```
+
+### How to Add a New Model
+
+1. **Create your model** in `app/models/`:
+   ```python
+   # app/models/your_model.py
+   from __future__ import annotations
+   from sqlmodel import Field, SQLModel
+
+   class YourModel(SQLModel, table=True):
+       id: int | None = Field(default=None, primary_key=True)
+       name: str
+       description: str = ""
+   ```
+
+2. **Register it** in `app/models/__init__.py`:
+   ```python
+   from app.models.your_model import YourModel
+
+   __all__ = ["User", "UserBase", "YourModel"]
+   ```
+
+3. **Generate and apply migration**:
+   ```bash
+   alembic revision --autogenerate -m "add your_model"
+   alembic upgrade head
+   ```
+
+### Useful Commands
+
+| Command | Description |
+|---------|-------------|
+| `alembic revision --autogenerate -m "message"` | Create migration from model changes |
+| `alembic upgrade head` | Apply all pending migrations |
+| `alembic downgrade -1` | Rollback the last migration |
+| `alembic downgrade base` | Rollback all migrations |
+| `alembic history` | Show migration history |
+| `alembic current` | Show current migration version |
+| `alembic check` | Check if DB matches models (no changes detected = OK) |
+
+### Important Notes
+
+- **Always review generated migrations** before applying them - autogenerate isn't perfect
+- **Use `render_as_batch=True`** - already configured for SQLite compatibility
+- **Don't modify applied migrations** - create a new one instead
+- **Test downgrades** - always verify `alembic downgrade -1` works correctly
+
+### Migration Workflow
+
+```
+1. Modify model in app/models/your_model.py
+2. alembic revision --autogenerate -m "describe change"
+3. Review the generated migration file in migrations/versions/
+4. alembic upgrade head
+5. Test your changes
+6. Commit both model and migration files
+```
+
+### For CI/CD
+
+Add migration checks to your deployment pipeline:
+
+```bash
+# Check that DB is up to date (fails if there are pending migrations)
+alembic upgrade head
+```
+
+### Troubleshooting
+
+**"sqlmodel is not defined" error in migration?**
+- The autogenerate sometimes produces incorrect imports
+- Replace `sqlmodel.sql.sqltypes.AutoString()` with `sa.String()` in the migration file
+
+**SQLite column change issues?**
+- SQLite has limited ALTER support
+- Alembic uses batch mode to handle this automatically
+
+
 ## Using this in production
 
 
 If you so ever choose to use this template for your own projects, please consider the following:
 
-1. You **WILL** need to modify the default configuration to 
-    - Use a database that's more suitable for production. 
+1. You **WILL** need to modify the default configuration to
+    - Use a database that's more suitable for production (e.g., PostgreSQL).
     - Change the default secret
     - Change the default environment
 2. You may need to tweak additional settings in the `config.py` file for scalability
-3. You'd need to look into a database migration / upgrade tool like alembic
+3. Database migrations are handled via Alembic (see section above)
 4. You may want to dockerize the application for easier deployment
 5. You may want to switch from storing cookies in localstorage to only cookies depending on your security needs.

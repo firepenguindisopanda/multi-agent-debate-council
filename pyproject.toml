@@ -28,6 +28,7 @@ dependencies = [
     "tabulate",
     "typer",
     "uvicorn[standard]",
+    "alembic",
 ]
 [project.optional-dependencies]
 dev = [
