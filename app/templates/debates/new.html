@@ -17,6 +17,14 @@
   </div>
   {% endif %}
 
+  {% set limit_reached = usage and usage.remaining == 0 %}
+  {% if limit_reached %}
+  <div class="alert alert-warning" role="alert" style="margin-bottom:24px">
+    {{ icon("clock") }}
+    <div><strong>You've reached the limit of {{ usage.limit }} debate{{ 's' if usage.limit != 1 }} per 24 hours.</strong> You can start another in {{ usage.next_available_at|timeuntil }}.</div>
+  </div>
+  {% endif %}
+
   <form id="new-debate" method="post" action="{{ url_for('create_debate_action') }}"
         hx-post="{{ url_for('create_debate_action') }}" hx-target="#form-errors" hx-disabled-elt="find button[type=submit]">
     <section class="form-section">
@@ -75,8 +83,11 @@
 
     <div id="form-errors" style="margin-bottom:16px"></div>
     <div class="form-footer">
+      {% if usage %}
+      <span class="usage-note">{{ icon("layers", "icon-sm") }} {{ usage.remaining }} of {{ usage.limit }} debate{{ 's' if usage.limit != 1 }} left in the last 24 hours</span>
+      {% endif %}
       <a class="btn btn-ghost" href="{{ url_for('debates_view') }}">Cancel</a>
-      <button class="btn btn-primary btn-lg" type="submit" {{ 'disabled' if not provider_ready }}>
+      <button class="btn btn-primary btn-lg" type="submit"{{ ' disabled' if not provider_ready or limit_reached }}>
         <span class="spinner" aria-hidden="true"></span>{{ icon("gavel", "icon-sm") }} Convene the council
       </button>
     </div>

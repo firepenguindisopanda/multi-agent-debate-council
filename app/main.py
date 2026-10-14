@@ -14,7 +14,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.config import get_settings
 from app.routers import api_router, router, static_files, templates
 from app.services.debate_runner import DebateRunner
-from app.services.errors import ServiceError
+from app.services.errors import LimitExceededError, ServiceError
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -99,7 +99,12 @@ def _register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(ServiceError)
     async def service_error(request: Request, exc: ServiceError):
         if _wants_json(request):
-            return JSONResponse({"detail": exc.message}, status_code=exc.status_code)
+            headers = {}
+            if isinstance(exc, LimitExceededError):
+                headers["Retry-After"] = str(exc.retry_after_seconds)
+            return JSONResponse(
+                {"detail": exc.message}, status_code=exc.status_code, headers=headers
+            )
         if request.headers.get("HX-Request") == "true":
             return templates.TemplateResponse(
                 request=request,
@@ -108,7 +113,12 @@ def _register_error_handlers(app: FastAPI) -> None:
                 status_code=exc.status_code,
                 headers={"HX-Retarget": "#toasts", "HX-Reswap": "beforeend"},
             )
-        titles = {404: "Not found", 409: "Can't do that", 503: "Model provider unavailable"}
+        titles = {
+            404: "Not found",
+            409: "Can't do that",
+            429: "Daily limit reached",
+            503: "Model provider unavailable",
+        }
         return _error_page(
             request, exc.status_code, titles.get(exc.status_code, "Error"), exc.message
         )

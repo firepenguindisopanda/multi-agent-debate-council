@@ -55,6 +55,7 @@ All settings come from environment variables or `.env` (see `env.example`).
 | `SECRET_KEY` | random in dev | **Required in production.** Signs JWTs and sessions. |
 | `ENV` | `development` | `production` enables secure cookies and hides `/docs`. |
 | `MAX_CONCURRENT_DEBATES` | `4` | Debates beyond this wait in a queue. |
+| `DAILY_DEBATE_LIMIT` | `10` | Debates each user may start per rolling 24 hours; `0` = unlimited. Admins are exempt. Deleting a debate doesn't refund it. |
 | `AUTO_MIGRATE` | `true` | Run migrations + seeding at startup. |
 
 ## How it works
@@ -123,7 +124,7 @@ Interactive docs are at `/docs` when `ENV=development`.
 ## Development
 
 ```bash
-pytest            # 33 tests, ~5s, no network needed
+pytest            # 40 tests, ~8s, no network needed
 ruff check . && ruff format --check .
 alembic revision --autogenerate -m "describe change"   # after changing models
 TEST_DATABASE_URI=postgresql://user:pass@localhost/test_db pytest   # run the suite on Postgres

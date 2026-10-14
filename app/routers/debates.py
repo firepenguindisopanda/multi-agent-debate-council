@@ -90,6 +90,7 @@ async def new_debate_view(
             "topic": "",
             "examples": TOPIC_EXAMPLES,
             "provider_ready": runner.is_ready,
+            "usage": service.usage_for(user),
         },
     )
 
@@ -113,7 +114,7 @@ async def create_debate_action(
                 request=request,
                 name="partials/form_error.html",
                 context={"message": e.message},
-                status_code=422,
+                status_code=e.status_code,
             )
         flash(request, e.message, "danger")
         return RedirectResponse(

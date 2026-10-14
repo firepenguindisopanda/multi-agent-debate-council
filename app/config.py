@@ -40,6 +40,8 @@ class Settings(BaseSettings):
     llm_timeout_seconds: float = 90.0
     # Upper bound on debates running at the same time in this process.
     max_concurrent_debates: int = 4
+    # Debates a non-admin user may start per rolling 24 hours (0 = unlimited).
+    daily_debate_limit: int = 10
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

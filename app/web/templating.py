@@ -9,6 +9,7 @@ from markupsafe import Markup
 from app.config import get_settings
 from app.models import DebateStatus
 from app.utilities.flash import get_flashed_messages
+from app.utilities.timefmt import format_duration
 
 _md = MarkdownIt("commonmark", {"html": False, "breaks": True}).enable("table")
 
@@ -42,6 +43,12 @@ def timeago(value: datetime | None) -> str:
     return "just now"
 
 
+def timeuntil(value: datetime | None) -> str:
+    if value is None:
+        return ""
+    return format_duration(_aware(value) - datetime.now(timezone.utc))
+
+
 def isodate(value: datetime | None) -> str:
     return _aware(value).isoformat() if value else ""
 
@@ -72,6 +79,7 @@ env.globals.update(
 env.filters.update(
     markdown=markdown,
     timeago=timeago,
+    timeuntil=timeuntil,
     isodate=isodate,
     role_slug=role_slug,
     status_label=status_label,
