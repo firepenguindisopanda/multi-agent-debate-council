@@ -1,0 +1,23 @@
+{% from "partials/icons.html" import icon %}
+<section class="card report" id="summary" aria-labelledby="report-title">
+  <div class="report-head">
+    <div>
+      <p class="eyebrow">Moderator</p>
+      <h2 id="report-title">Council report</h2>
+    </div>
+    {% if debate.summary %}
+    <button class="btn btn-sm" type="button" data-copy="#report-source">{{ icon("copy", "icon-sm") }} Copy markdown</button>
+    {% endif %}
+  </div>
+  {% if debate.summary %}
+    <div class="report-body prose">{{ debate.summary|markdown }}</div>
+    <template id="report-source">{{ debate.summary }}</template>
+  {% elif live and live.summary_text is not none %}
+    <div class="report-body"><div class="report-stream msg-body stream" id="summary-stream" style="--hue: var(--accent)">{{ live.summary_text }}</div></div>
+  {% elif debate.status.is_active %}
+    <div class="report-placeholder">{{ icon("sparkles") }} The moderator will publish the report after the final round.</div>
+    <div class="skeleton" aria-hidden="true"><i></i><i></i><i></i></div>
+  {% else %}
+    <div class="report-placeholder">{{ icon("alert") }} No report — the debate ended before the moderator could summarise it.</div>
+  {% endif %}
+</section>

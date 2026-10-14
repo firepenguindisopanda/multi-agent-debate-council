@@ -1,0 +1,23 @@
+{% extends "layouts/app.html" %}
+{% from "partials/icons.html" import icon %}
+{% block title %}{{ debate.topic[:60] }}{% endblock %}
+{% block main %}
+<div class="container page" style="padding-top:0">
+  {% include "debates/_header.html" %}
+  <div class="chamber">
+    {% include "debates/_council.html" %}
+    <div class="stack" style="--gap:28px; min-width:0">
+      {% include "debates/_transcript.html" %}
+      {% include "debates/_summary.html" %}
+    </div>
+  </div>
+</div>
+
+{% if is_running %}
+{# Live updates: every `update` event carries out-of-band swaps for the regions above. #}
+<div hx-ext="sse" sse-connect="{{ url_for('debate_events', debate_id=debate.id) }}" sse-close="done">
+  <div sse-swap="update" hx-swap="none"></div>
+</div>
+<button class="btn follow-btn" type="button" data-follow hidden>{{ icon("arrow-down", "icon-sm") }} Jump to latest</button>
+{% endif %}
+{% endblock %}

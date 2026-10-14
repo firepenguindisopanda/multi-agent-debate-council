@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% from "partials/icons.html" import icon %}
+{% block title %}Stress-test your requirements{% endblock %}
+{% block body %}
+<header class="topnav">
+  <div class="container">
+    <a class="brand" href="/"><span class="brand-mark"><span></span></span><span class="brand-text">Debate Council</span></a>
+    <div class="nav-right">
+      <button class="btn btn-ghost btn-icon" type="button" data-theme-toggle aria-label="Toggle dark mode">{{ icon("moon") }}</button>
+      <a class="btn btn-ghost" href="{{ url_for('login_view') }}">Sign in</a>
+      <a class="btn btn-primary" href="{{ url_for('register_view') }}">Get started</a>
+    </div>
+  </div>
+</header>
+<main id="main" class="container">
+  <section class="hero">
+    <div>
+      <div class="hero-badge"><b>New</b> Live-streamed debates powered by NVIDIA NIM</div>
+      <h1>Put your requirements <em>on trial</em> before you write code.</h1>
+      <p class="lead">Describe a feature or project. A council of AI specialists — analyst, developer, DevOps, frontend, product and data — debates it round by round, then hands you a decision-ready report.</p>
+      <div class="row">
+        <a class="btn btn-primary btn-lg" href="{{ url_for('register_view') }}">Convene a council {{ icon("arrow-right", "icon-sm") }}</a>
+        <a class="btn btn-lg" href="#how">How it works</a>
+      </div>
+    </div>
+    <div class="card preview" aria-hidden="true">
+      <div class="preview-top">
+        <span class="pill pill-live">Live · Round 2 of 3</span>
+        <div class="progress"><span class="progress-seg done"></span><span class="progress-seg current"></span><span class="progress-seg"></span></div>
+      </div>
+      <div class="stack" style="--gap:10px">
+        <article class="card msg agent-ba">
+          <span class="avatar">📊</span>
+          <div><div class="msg-head"><span class="name">Business Analyst</span><span class="role-tag">BA</span></div>
+          <div class="prose">“Live occupancy” needs a definition. Updated every 5 seconds or every 5 minutes? That changes everything downstream.</div></div>
+        </article>
+        <article class="card msg agent-dev">
+          <span class="avatar">💻</span>
+          <div><div class="msg-head"><span class="name">Senior Developer</span><span class="role-tag">Dev</span></div>
+          <div class="prose">Agree with the BA. Under 30s freshness means sensors + websockets; otherwise a booking-derived estimate is <strong>10× cheaper</strong>.</div></div>
+        </article>
+        <article class="card msg streaming agent-po">
+          <span class="avatar">🎯</span>
+          <div><div class="msg-head"><span class="name">Product Owner</span><span class="role-tag">PO</span></div>
+          <div class="prose msg-body stream">Ship the booking-based estimate as the MVP and measure</div></div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="how">
+    <p class="eyebrow">How it works</p>
+    <h2 class="section-title">From vague idea to clear requirements</h2>
+    <div class="steps">
+      <div class="card step"><div class="step-num">1</div><h3>Describe the topic</h3><p>A feature, a project or a hard trade-off. One or two sentences is enough.</p></div>
+      <div class="card step"><div class="step-num">2</div><h3>Watch the debate live</h3><p>Pick your council and the number of rounds. Each member argues, rebuts and refines in real time.</p></div>
+      <div class="card step"><div class="step-num">3</div><h3>Get the report</h3><p>A neutral moderator distils agreed requirements, open questions, risks and next steps.</p></div>
+    </div>
+  </section>
+
+  {% if agents %}
+  <section class="section">
+    <p class="eyebrow">The council</p>
+    <h2 class="section-title">Six perspectives, one conversation</h2>
+    <div class="roster">
+      {% for agent in agents %}
+      <div class="card roster-item agent-{{ agent.role|role_slug }}">
+        {% with size = "lg" %}{% include "partials/avatar.html" %}{% endwith %}
+        <div><h3>{{ agent.name }} <span class="role-tag">{{ agent.role }}</span></h3><p>{{ agent.description }}</p></div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+</main>
+<footer class="footer"><div class="container row-between"><span>Debate Council</span><span>Built with FastAPI, htmx and NVIDIA NIM</span></div></footer>
+{% endblock %}

@@ -1,13 +1,17 @@
-from __future__ import annotations
-
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import TYPE_CHECKING, Optional
 
-from sqlmodel import Field, SQLModel
+from sqlalchemy import Column, Text
+from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
-    pass
+    from app.models.debate_participant import DebateParticipant
+    from app.models.message import Message
+
+
+def utcnow() -> datetime:
+    return datetime.now(timezone.utc)
 
 
 class DebateStatus(str, Enum):
@@ -15,6 +19,11 @@ class DebateStatus(str, Enum):
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
     STOPPED = "stopped"
+    FAILED = "failed"
+
+    @property
+    def is_active(self) -> bool:
+        return self in (DebateStatus.PENDING, DebateStatus.IN_PROGRESS)
 
 
 class DebateBase(SQLModel, table=False):
@@ -30,8 +39,21 @@ class Debate(DebateBase, table=True):
 
     id: Optional[int] = Field(default=None, primary_key=True)
     status: DebateStatus = Field(default=DebateStatus.PENDING)
-    created_by_user_id: Optional[int] = Field(default=None, foreign_key="user.id")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_by_user_id: Optional[int] = Field(default=None, foreign_key="user.id", index=True)
+    created_at: datetime = Field(default_factory=utcnow)
     completed_at: Optional[datetime] = None
+    # Moderator's consensus report (markdown), written when the debate completes.
+    summary: Optional[str] = Field(default=None, sa_column=Column(Text, nullable=True))
+    error: Optional[str] = Field(default=None, max_length=1000)
 
-    # Note: Relationships are configured in a separate function to avoid circular imports
+    participants: list["DebateParticipant"] = Relationship(
+        back_populates="debate",
+        sa_relationship_kwargs={
+            "cascade": "all, delete-orphan",
+            "order_by": "DebateParticipant.order",
+        },
+    )
+    messages: list["Message"] = Relationship(
+        back_populates="debate",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan", "order_by": "Message.id"},
+    )

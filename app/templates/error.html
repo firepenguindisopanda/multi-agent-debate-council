@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% from "partials/icons.html" import icon %}
+{% block title %}{{ title }}{% endblock %}
+{% block body %}
+<div class="error-page">
+  <div class="stack" style="--gap:14px; align-items:center">
+    <div class="error-code">{{ code }}</div>
+    <h1 class="page-title">{{ title }}</h1>
+    <p class="muted" style="max-width:440px">{{ message }}</p>
+    <div class="row" style="margin-top:10px">
+      <button class="btn" type="button" data-history-back>{{ icon("arrow-left", "icon-sm") }} Go back</button>
+      <a class="btn btn-primary" href="/">Home</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

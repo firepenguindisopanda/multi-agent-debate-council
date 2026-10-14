@@ -1,41 +1,58 @@
-from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi import Request, status, Form
-from app.dependencies import SessionDep
-from . import router, templates
-from app.services.auth_service import AuthService
-from app.repositories.user import UserRepository
-from app.utilities.flash import flash
-from app.config import get_settings
+from typing import Annotated
 
-# View route responsible for UI
+from fastapi import Depends, Form, HTTPException, Request, status
+from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.security import OAuth2PasswordRequestForm
+
+from app.dependencies import OptionalUserDep, SessionDep
+from app.repositories.user import UserRepository
+from app.schemas.auth import TokenResponse
+from app.services.auth_service import AuthService
+from app.utilities.security import safe_next_url, set_auth_cookie
+
+from . import api_router, router, templates
+
+
 @router.get("/login", response_class=HTMLResponse)
-async def login_view(request: Request):
+async def login_view(request: Request, user: OptionalUserDep, next: str | None = None):
+    if user:
+        return RedirectResponse(safe_next_url(next), status_code=status.HTTP_303_SEE_OTHER)
     return templates.TemplateResponse(
-        request=request, 
-        name="login.html",
+        request=request, name="auth/login.html", context={"next": next or ""}
     )
 
-#Action route responsible for actually logging in the person
+
 @router.post("/login", response_class=HTMLResponse)
-async def login_action_ajax(
+async def login_action(
     db: SessionDep,
     request: Request,
     username: str = Form(),
     password: str = Form(),
+    next: str = Form(default=""),
 ):
-    user_repo = UserRepository(db)
-    auth_service = AuthService(user_repo)
-    access_token =auth_service.authenticate_user(username, password)
+    access_token = AuthService(UserRepository(db)).authenticate_user(username, password)
     if not access_token:
-        flash(request, "Incorrect username or password", "danger")
-        return RedirectResponse(url=request.url_for("login_view"), status_code=status.HTTP_303_SEE_OTHER)
-    
-    response = RedirectResponse(url=request.url_for("index_view"), status_code=status.HTTP_303_SEE_OTHER)
-    response.set_cookie(
-        key="access_token",
-        value=access_token,
-        httponly=True,
-        samesite="none",
-        secure=True,
-    )
+        return templates.TemplateResponse(
+            request=request,
+            name="auth/login.html",
+            context={
+                "error": "Incorrect username or password.",
+                "username": username,
+                "next": next,
+            },
+            status_code=status.HTTP_401_UNAUTHORIZED,
+        )
+    response = RedirectResponse(url=safe_next_url(next), status_code=status.HTTP_303_SEE_OTHER)
+    set_auth_cookie(response, access_token)
     return response
+
+
+@api_router.post("/auth/token", response_model=TokenResponse)
+async def issue_token(db: SessionDep, form: Annotated[OAuth2PasswordRequestForm, Depends()]):
+    """Exchange username/password for a bearer token (for API clients)."""
+    token = AuthService(UserRepository(db)).authenticate_user(form.username, form.password)
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect username or password"
+        )
+    return TokenResponse(access_token=token)

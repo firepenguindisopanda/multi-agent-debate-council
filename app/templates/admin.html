@@ -1,12 +1,37 @@
-{% extends "authenticated-base.html" %}
-
-{% block external_js %}
-<script src="{{ url_for('static', path='js/app.js')}}"></script>
-{% endblock %}
-
-
-{% block subpage_content %}
-
-   I am the admin page
-
+{% extends "layouts/app.html" %}
+{% block title %}Admin{% endblock %}
+{% block main %}
+<div class="container page">
+  <div class="page-head"><div><p class="eyebrow">Administration</p><h1 class="page-title">Overview</h1></div></div>
+  <div class="stats">
+    <div class="card stat"><div class="stat-label">Users</div><div class="stat-value">{{ users|length }}</div></div>
+    <div class="card stat"><div class="stat-label">Debates</div><div class="stat-value">{{ stats.total }}</div></div>
+    <div class="card stat"><div class="stat-label">Completed</div><div class="stat-value">{{ stats.completed }}</div></div>
+    <div class="card stat"><div class="stat-label">Failed</div><div class="stat-value">{{ stats.failed }}</div></div>
+  </div>
+  <div class="stack" style="--gap:24px">
+    <section class="card">
+      <div class="card-head"><h2 class="card-title">Recent debates</h2></div>
+      <div class="table-wrap"><table class="table">
+        <thead><tr><th>Topic</th><th>Status</th><th>Rounds</th><th>Created</th></tr></thead>
+        <tbody>
+        {% for d in recent %}
+          <tr><td><a href="{{ url_for('debate_view', debate_id=d.id) }}">{{ d.topic[:90] }}</a></td>
+              <td><span class="pill pill-{{ d.status|status_class }}">{{ d.status|status_label }}</span></td>
+              <td>{{ d.max_rounds }}</td><td class="muted">{{ d.created_at|timeago }}</td></tr>
+        {% else %}<tr><td colspan="4" class="muted">No debates yet.</td></tr>{% endfor %}
+        </tbody>
+      </table></div>
+    </section>
+    <section class="card">
+      <div class="card-head"><h2 class="card-title">Users</h2></div>
+      <div class="table-wrap"><table class="table">
+        <thead><tr><th>ID</th><th>Username</th><th>Email</th><th>Role</th></tr></thead>
+        <tbody>
+        {% for u in users %}<tr><td class="muted">{{ u.id }}</td><td>{{ u.username }}</td><td>{{ u.email }}</td><td>{{ u.role }}</td></tr>{% endfor %}
+        </tbody>
+      </table></div>
+    </section>
+  </div>
+</div>
 {% endblock %}

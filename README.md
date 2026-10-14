@@ -1,198 +1,137 @@
-# FastAPIStarter
+# Debate Council
 
-A FastAPI template for info2602 students based on the [fullstack fastapi template](https://github.com/fastapi/full-stack-fastapi-template) with a few modifications to make it a layered architecture that combines the best of MVC and service repository pattern. This codebase is structured to reduce the repeatibility of code [(the DRY principle)](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself) as it was demonstrated in class that code is usually repeated when implementing functionality for a CLI app, a headless API, and a fullstack app. When writing software at scale, deduplicating code is important as it makes the codebase easier to maintain, test and scale.
+Put your requirements on trial before you write code.
 
-Additionally, this codebase follows an API-first, modern AJAX flow (similar to Lab 8). In essence, this can be summarized as follows. 
+Describe a feature or project, pick a council of AI specialists (Business Analyst, Senior Developer, DevOps Engineer, Frontend Engineer, Product Owner, Data Engineer) and watch them debate it **live**, round by round. When the final round ends, a neutral moderator writes a decision-ready report: verdict, agreed requirements, open questions, risks and next steps.
 
-1. If we want to have this backend web application render the UI as well, we can implement our **VIEWS** that return our user interface.
-2. A small javascript script (`utils.js`) intercepts default form submissions and instead sends an appropriate endpoint to our **api** endpoints
+Models are served by **NVIDIA NIM** through its OpenAI-compatible API.
 
-The main advantage of this application structure are plenty:
-1. We don't have to implement a jinja based frontend for the application. We can simply implement api endpoints like we did in labs 1-4 
-2. We can implement a backend API for a mobile / desktop application (where the view logic resides in java/kotlin/flutter etc)
-3. We can implement a backend API that uses a separate frontend like Vue, React, Next, Nuxt etc.
-4. We can export the list of endpoints and have other services (like AI agents) consume them 
-5. We can implement an app that functions purely from the CLI
+![Landing page](docs/screenshots/landing.png)
 
+| Live debate | Finished debate (dark mode) |
+|---|---|
+| ![Live debate](docs/screenshots/live-debate.png) | ![Dark mode](docs/screenshots/debate-dark.png) |
 
-## What is the Model View Controller (MVC) pattern?
-
-The MVC pattern is a code pattern that is used to organise the modules of a project and when applied to a project, it usually works as follows:
-
-- **Models** are your SQLModel/SQLAlchemy classes (The classes that become database tables)
-- **Controllers** are utility functions used to mutate models and/or perform business logic
-- **Views** bind controllers to http routes passing along any user parameters from the request to the controller
-
-
-## What is the Service repository pattern?
-
-The Service Repository pattern is designed to keep business logic separate from the data access and it aims to separate the codebase into distinct layers.
-
-- **The Repository Layer** acts as a mediator between the application and the data source (the database, files, etc)
-- **The Service Layer** sits between the controller and the repository and this is where business logic lives.
-
-
-The job of the **repository layer** is to handle ***CRUD*** operations on a model. It doesn't care about the rules at the business logic layer, it's only concerned about how to get and manipulate data. 
-
-The job of the **service layer** is to handle the **RULES** of the application. This is where the business logic comes in such as checking to see if a user's authorized to access the data.
-
-## App Structure
-
-This app is structuresd as follows
-
-<pre>
-FastAPIStarter
-|-- app
-|    |- api
-|    |- dependencies
-|    |- models
-|    |- repositories
-|    |- schemas
-|    |- services
-|    |- static
-|    |- templates
-|    |- utilities
-|    |- views
-|-- tests/
-|-- env.example
-|-- pyptoject.toml
-|-- README.md
-</pre>
-
-#### App Structure info
-
-##### Main folders
-`app` This folder contains all of our application code.
-
-`tests` This contains the tests (unit tests, integration tests, etc) for the application.
-
-##### Folders inside App
-`api` This folder contains the endpoints (route fucntions) of our app.
-
-`dependencies` This folder contains the functions that we'd usually use for dependency injection e.g. getting the information of the user who's performing the request, getting a reference to the database, etc
-
-`models` This folder contains the Pydantic / SQLModel / SQLAlchemy models that eventually become database tables. Note that the files in here are strictly those that become database tables. The other models used for request and response validation go in the `schemas` folder
-
-`repositories` files in this folder are used to query the datastore, which depending on the app can be a file, database, another api, etc. Usually though, it's our database.
-
-`services` The business logic of the application lives here.
-
-`schemas` files in this folder specify pydantic / sqlmodel classes that are used for data validation only and *NOT* models that become database tables.
-
-`utilities` This contain generic helper functions
-
-`static` this contains folders that contain css, js, img and other assets we may need when this app is responsible for rendering of the frontend UI>
-
-`templates` this contains our jinja2 templates
-
-`views` this contains the route functions used for when this app is responsible for rendering the frontnend UI
-
-> Note that the file env.example provides a default set of configuration values for this application. you **MUST** create a copy of this file named `.env` before launching the app. The preconfigured environment allows a user to have an app that uses a sqlite database for a datastore as well as some other default configurations. The values in this should ideally be modified for production. For more possible variables, check out the `config.py` file
-
-
-## Database Migrations (Alembic)
-
-This project uses **Alembic** for database migrations, allowing you to version-control your database schema changes safely.
-
-### Setup
-
-Alembic is already configured in this project. To start fresh:
+## Quick start
 
 ```bash
-# Install alembic (if not already installed)
-pip install alembic
-
-# Initialize alembic (already done - skip if migrations folder exists)
-alembic init migrations
+python -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev]"
+cp env.example .env          # then set NVIDIA_API_KEY=nvapi-... in .env
+python -m app.main           # http://localhost:8000
 ```
 
-### How to Add a New Model
+On startup the app applies database migrations and seeds the six council agents, so there is no separate setup step. Register an account, click **New debate**, and you're running.
 
-1. **Create your model** in `app/models/`:
-   ```python
-   # app/models/your_model.py
-   from __future__ import annotations
-   from sqlmodel import Field, SQLModel
+Get an API key from [build.nvidia.com](https://build.nvidia.com). Keep it in `.env` (git-ignored) and never commit it.
 
-   class YourModel(SQLModel, table=True):
-       id: int | None = Field(default=None, primary_key=True)
-       name: str
-       description: str = ""
-   ```
-
-2. **Register it** in `app/models/__init__.py`:
-   ```python
-   from app.models.your_model import YourModel
-
-   __all__ = ["User", "UserBase", "YourModel"]
-   ```
-
-3. **Generate and apply migration**:
-   ```bash
-   alembic revision --autogenerate -m "add your_model"
-   alembic upgrade head
-   ```
-
-### Useful Commands
-
-| Command | Description |
-|---------|-------------|
-| `alembic revision --autogenerate -m "message"` | Create migration from model changes |
-| `alembic upgrade head` | Apply all pending migrations |
-| `alembic downgrade -1` | Rollback the last migration |
-| `alembic downgrade base` | Rollback all migrations |
-| `alembic history` | Show migration history |
-| `alembic current` | Show current migration version |
-| `alembic check` | Check if DB matches models (no changes detected = OK) |
-
-### Important Notes
-
-- **Always review generated migrations** before applying them - autogenerate isn't perfect
-- **Use `render_as_batch=True`** - already configured for SQLite compatibility
-- **Don't modify applied migrations** - create a new one instead
-- **Test downgrades** - always verify `alembic downgrade -1` works correctly
-
-### Migration Workflow
-
-```
-1. Modify model in app/models/your_model.py
-2. alembic revision --autogenerate -m "describe change"
-3. Review the generated migration file in migrations/versions/
-4. alembic upgrade head
-5. Test your changes
-6. Commit both model and migration files
-```
-
-### For CI/CD
-
-Add migration checks to your deployment pipeline:
+### Docker
 
 ```bash
-# Check that DB is up to date (fails if there are pending migrations)
-alembic upgrade head
+docker build -t debate-council .
+docker run -p 8000:8000 --env-file .env debate-council
 ```
 
-### Troubleshooting
+### Management CLI
 
-**"sqlmodel is not defined" error in migration?**
-- The autogenerate sometimes produces incorrect imports
-- Replace `sqlmodel.sql.sqltypes.AutoString()` with `sa.String()` in the migration file
+```bash
+python -m app.cli migrate        # apply migrations
+python -m app.cli seed-agents    # add any missing council agents
+python -m app.cli list-agents
+python -m app.cli create-admin   # prompts for username, email, password
+```
 
-**SQLite column change issues?**
-- SQLite has limited ALTER support
-- Alembic uses batch mode to handle this automatically
+## Configuration
 
+All settings come from environment variables or `.env` (see `env.example`).
 
-## Using this in production
+| Variable | Default | Notes |
+|---|---|---|
+| `NVIDIA_API_KEY` | — | **Required to run debates.** |
+| `LLM_MODEL` | `meta/llama-3.3-70b-instruct` | Any chat model in the NIM catalog. |
+| `NVIDIA_BASE_URL` | `https://integrate.api.nvidia.com/v1` | Point at a self-hosted NIM if you have one. |
+| `LLM_TEMPERATURE` / `LLM_MAX_TOKENS` / `LLM_SUMMARY_MAX_TOKENS` | `0.7` / `450` / `1200` | Per-turn and report length limits. |
+| `DATABASE_URI` | `sqlite:///database.db` | Postgres works too (`postgresql://...`). |
+| `SECRET_KEY` | random in dev | **Required in production.** Signs JWTs and sessions. |
+| `ENV` | `development` | `production` enables secure cookies and hides `/docs`. |
+| `MAX_CONCURRENT_DEBATES` | `4` | Debates beyond this wait in a queue. |
+| `AUTO_MIGRATE` | `true` | Run migrations + seeding at startup. |
 
+## How it works
 
-If you so ever choose to use this template for your own projects, please consider the following:
+```mermaid
+flowchart LR
+    Browser -- "form posts (htmx)" --> Routes
+    Browser -- "EventSource /debates/{id}/events" --> SSE
+    Routes --> Service[DebateService<br/>business rules]
+    Service --> Repo[Repositories] --> DB[(SQLite / Postgres)]
+    Service -- start / stop --> Runner[DebateRunner<br/>asyncio tasks + pub/sub]
+    Runner --> Engine[DebateEngine<br/>rounds → moderator]
+    Engine -- stream_chat --> NIM[NVIDIA NIM]
+    Engine -- persist --> DB
+    Engine -- events --> Runner -- fan-out --> SSE[SSE stream<br/>renders HTML fragments] --> Browser
+```
 
-1. You **WILL** need to modify the default configuration to
-    - Use a database that's more suitable for production (e.g., PostgreSQL).
-    - Change the default secret
-    - Change the default environment
-2. You may need to tweak additional settings in the `config.py` file for scalability
-3. Database migrations are handled via Alembic (see section above)
-4. You may want to dockerize the application for easier deployment
-5. You may want to switch from storing cookies in localstorage to only cookies depending on your security needs.
+1. **Create.** `POST /debates` validates the request (topic length, at least 2 agents, 1-5 rounds, provider configured), stores the debate and its participants, and hands it to the `DebateRunner`.
+2. **Run.** The runner starts the `DebateEngine` as a background asyncio task. For each round, every participant speaks in order. Their prompt contains the topic, the transcript so far and round-specific instructions: open with a position, then rebut, then converge in the final round. After the last round, the moderator streams the report.
+3. **Stream.** The engine publishes events (`MessageStarted`, `TokenDelta`, `MessageCompleted`, `SummaryDelta`, …). Token deltas are batched to about 15 updates per second. The SSE endpoint turns each event into small HTML fragments with `hx-swap-oob`, and the [htmx SSE extension](https://htmx.org/extensions/sse/) patches them into the page. No client-side framework is involved.
+4. **Persist.** Messages are written as they stream (partial content is saved every second), so stopping a debate keeps everything said so far. On a restart, debates left running are marked as interrupted.
+
+**Reconnects are lossless.** When a browser connects or reconnects, the server subscribes it to events and renders a snapshot in the same synchronous step, with no `await` between them, so no token can fall between the two. You can refresh mid-debate and pick up exactly where you were.
+
+### Project layout
+
+```
+app/
+  llm/            LLM client protocol + NVIDIA NIM implementation
+  services/       debate_service (rules), debate_engine (orchestration),
+                  debate_runner (background tasks + pub/sub), prompts, auth
+  repositories/   data access (debates, agents, users)
+  models/         SQLModel tables
+  schemas/        request/response models for the JSON API
+  routers/        HTML pages (htmx) and JSON API (/api)
+  web/            Jinja environment, markdown rendering, SSE fragment stream
+  templates/      layouts, pages and partials (debates/_*.html are live regions)
+  static/         design system (css/app.css), small JS, vendored htmx
+migrations/       Alembic migrations
+tests/            pytest suite (uses a scripted fake LLM; no network)
+```
+
+## JSON API
+
+Every page is backed by the same service layer that the API uses. Authenticate with the login cookie, or exchange credentials for a bearer token:
+
+```bash
+TOKEN=$(curl -s -X POST localhost:8000/api/auth/token -d "username=alice&password=..." | jq -r .access_token)
+curl -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+     -d '{"topic":"A booking app for study rooms","agent_ids":[1,2,5],"max_rounds":2}' \
+     localhost:8000/api/debates
+```
+
+| Method | Path | |
+|---|---|---|
+| `POST` | `/api/auth/token` | Username/password → bearer token |
+| `GET` | `/api/agents` | Council members |
+| `GET` / `POST` | `/api/debates` | List (`?q=&status=`) / create and start |
+| `GET` | `/api/debates/{id}` | Debate with participants, messages, report |
+| `POST` | `/api/debates/{id}/stop` | Stop a running debate |
+| `DELETE` | `/api/debates/{id}` | Delete |
+| `GET` | `/api/users` | Admin only |
+
+Interactive docs are at `/docs` when `ENV=development`.
+
+## Development
+
+```bash
+pytest            # 29 tests, ~5s, no network needed
+ruff check . && ruff format --check .
+alembic revision --autogenerate -m "describe change"   # after changing models
+```
+
+The tests drive the real engine, runner, SSE stream and pages with a scripted `FakeLLM` (`tests/fakes.py`). The NIM client is tested against a mocked HTTP transport.
+
+## Design decisions and limits
+
+- **Server-rendered UI with htmx.** There's no JS build step, and pages work without JavaScript; only live streaming needs it. Model output is rendered as markdown with raw HTML disabled, so a model can't inject markup.
+- **Live state is held in process.** That is why the server runs with **one worker**. To scale out, replace `DebateRunner`'s queues with Redis pub/sub and run the engine in a worker process. The service and engine interfaces don't need to change.
+- **Security.** Passwords are hashed with Argon2. JWT cookies are HttpOnly and `SameSite=Lax`, and `Secure` in production. Debates are scoped to their owner, login redirects reject off-site URLs, and the admin pages and API are role-gated.

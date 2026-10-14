@@ -1,0 +1,85 @@
+{% extends "layouts/app.html" %}
+{% from "partials/icons.html" import icon %}
+{% block title %}New debate{% endblock %}
+{% block main %}
+<div class="container container-narrow page">
+  <div class="page-head">
+    <div>
+      <a class="nav-link" style="padding-left:0" href="{{ url_for('debates_view') }}">{{ icon("arrow-left", "icon-sm") }} All debates</a>
+      <h1 class="page-title" style="margin-top:8px">Convene a council</h1>
+    </div>
+  </div>
+
+  {% if not provider_ready %}
+  <div class="alert alert-warning" role="alert" style="margin-bottom:24px">
+    {{ icon("alert") }}
+    <div><strong>No model provider configured.</strong> Add <code class="mono">NVIDIA_API_KEY=nvapi-…</code> to your <code class="mono">.env</code> file and restart the server to run debates.</div>
+  </div>
+  {% endif %}
+
+  <form id="new-debate" method="post" action="{{ url_for('create_debate_action') }}"
+        hx-post="{{ url_for('create_debate_action') }}" hx-target="#form-errors" hx-disabled-elt="find button[type=submit]">
+    <section class="form-section">
+      <div class="form-section-head"><h2><span class="n">1</span> Topic</h2><p>What should the council debate? Be specific about users, scale or constraints.</p></div>
+      <div>
+        <div class="topic-box">
+          <label class="sr-only" for="topic">Debate topic</label>
+          <textarea class="textarea" id="topic" name="topic" maxlength="500" minlength="10" required
+                    placeholder="e.g. A web app for clinics to manage patient appointments and send SMS reminders…" data-counter="#topic-count">{{ topic }}</textarea>
+          <span class="topic-count" id="topic-count">0 / 500</span>
+        </div>
+        <div class="examples">
+          {% for example in examples %}
+          <button class="chip chip-example" type="button" data-fill-topic="{{ example }}">{{ example }}</button>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+
+    <section class="form-section">
+      <div class="form-section-head">
+        <h2><span class="n">2</span> Council</h2>
+        <p>Choose at least two members. They speak in this order each round.</p>
+        <button class="btn btn-sm" type="button" data-select-all="agent_ids" style="margin-top:12px">Select all</button>
+      </div>
+      <fieldset class="agent-grid" style="border:0;padding:0;margin:0">
+        <legend class="sr-only">Council members</legend>
+        {% for agent in agents %}
+        <div class="agent-option agent-{{ agent.role|role_slug }}">
+          <input type="checkbox" name="agent_ids" value="{{ agent.id }}" id="agent-{{ agent.id }}" {{ 'checked' if agent.id in selected_ids }}>
+          <label for="agent-{{ agent.id }}">
+            {% include "partials/avatar.html" %}
+            <div class="grow">
+              <div class="name">{{ agent.name }} <span class="role-tag">{{ agent.role }}</span></div>
+              <div class="desc">{{ agent.description }}</div>
+            </div>
+            <span class="check">{{ icon("check", "icon-sm") }}</span>
+          </label>
+        </div>
+        {% endfor %}
+      </fieldset>
+    </section>
+
+    <section class="form-section">
+      <div class="form-section-head"><h2><span class="n">3</span> Rounds</h2><p>More rounds mean deeper rebuttals, and a longer wait.</p></div>
+      <div>
+        <div class="seg" role="radiogroup" aria-label="Number of rounds">
+          {% for n in range(1, max_rounds + 1) %}
+          <input type="radio" name="max_rounds" id="rounds-{{ n }}" value="{{ n }}" {{ 'checked' if n == rounds }}>
+          <label for="rounds-{{ n }}">{{ n }}</label>
+          {% endfor %}
+        </div>
+        <p class="estimate" id="estimate" aria-live="polite"></p>
+      </div>
+    </section>
+
+    <div id="form-errors" style="margin-bottom:16px"></div>
+    <div class="form-footer">
+      <a class="btn btn-ghost" href="{{ url_for('debates_view') }}">Cancel</a>
+      <button class="btn btn-primary btn-lg" type="submit" {{ 'disabled' if not provider_ready }}>
+        <span class="spinner" aria-hidden="true"></span>{{ icon("gavel", "icon-sm") }} Convene the council
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}

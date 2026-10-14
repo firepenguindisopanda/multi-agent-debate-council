@@ -1,25 +1,26 @@
-from app.models.user import UserBase
-from sqlmodel import SQLModel
-from pydantic import EmailStr
 from typing import Optional
+
+from pydantic import EmailStr
+from sqlmodel import SQLModel
+
+from app.models.user import UserBase
 
 
 class UserUpdate(SQLModel):
-    username: Optional[str]
-    email: Optional[EmailStr]
- 
+    username: Optional[str] = None
+    email: Optional[EmailStr] = None
+
+
 class AdminCreate(UserBase):
-    role:str = "admin"
+    role: str = "admin"
+
 
 class RegularUserCreate(UserBase):
-    role:str = "regular_user"
+    role: str = "regular_user"
+
 
 class UserResponse(SQLModel):
     id: int
-    username:str
-    email: EmailStr
-
-class SignupRequest(SQLModel):
     username: str
     email: EmailStr
-    password: str
+    role: str

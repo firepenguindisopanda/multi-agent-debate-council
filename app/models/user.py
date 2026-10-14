@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from sqlmodel import Field, SQLModel
 from typing import Optional
+
 from pydantic import EmailStr
+from sqlmodel import Field, SQLModel
 
 
 class UserBase(SQLModel, table=False):

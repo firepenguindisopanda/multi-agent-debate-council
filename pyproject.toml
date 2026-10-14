@@ -3,40 +3,57 @@ requires = ["setuptools>=64.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "project-starter"
-version = "0.0.1"
-description = "Starter repository for student's projects for info 2602"
+name = "debate-council"
+version = "0.2.0"
+description = "Multi-agent debate council: AI specialists stress-test software requirements"
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [
     { name = "Kwasi Edwards", email = "kwasiedwards@gmail.com" }
 ]
 dependencies = [
-    "asyncpg",
-    "fastapi[all]",
+    "alembic",
+    "fastapi[standard]",
     "httpx",
     "itsdangerous",
     "jinja2",
-    "pwdlib[argon2]",
+    "markdown-it-py",
+    "openai>=1.40",
     "psycopg2-binary",
+    "pwdlib[argon2]",
+    "pydantic-settings",
     "pyjwt",
-    "python-jose",
-    "pytest-asyncio",
-    "pytest",
-    "ruff",
     "sqlmodel",
-    "tabulate",
     "typer",
     "uvicorn[standard]",
-    "alembic",
 ]
+
 [project.optional-dependencies]
 dev = [
-
+    "pytest",
+    "pytest-asyncio",
+    "ruff",
 ]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+extend-exclude = ["migrations"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B"]
+ignore = ["B008"]  # FastAPI dependencies are declared as default arguments
+
+[tool.ruff.lint.per-file-ignores]
+# Prompt text reads better unwrapped.
+"app/data/seed_agents.py" = ["E501"]
+"app/services/prompts.py" = ["E501"]
 
 [tool.setuptools]
-packages = ["app"]
+packages = { find = { include = ["app*"] } }
+
+[tool.setuptools.package-data]
+app = ["templates/**/*", "static/**/*"]

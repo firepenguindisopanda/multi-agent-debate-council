@@ -1,0 +1,40 @@
+{% from "partials/icons.html" import icon %}
+<section class="chamber-head" id="debate-header">
+  <div class="row-between">
+    <a class="nav-link" style="padding-left:0" href="{{ url_for('debates_view') }}">{{ icon("arrow-left", "icon-sm") }} All debates</a>
+    <div class="row" style="--gap:8px">
+      {% if debate.status.is_active %}
+      <button class="btn btn-sm btn-danger" type="button"
+              hx-post="{{ url_for('stop_debate_action', debate_id=debate.id) }}" hx-swap="none"
+              hx-confirm="Stop the debate now? Messages so far will be kept.">
+        <span class="spinner" aria-hidden="true"></span>{{ icon("stop", "icon-sm") }} Stop
+      </button>
+      {% else %}
+      <a class="btn btn-sm" href="{{ url_for('export_debate', debate_id=debate.id) }}" download>{{ icon("download", "icon-sm") }} Export</a>
+      <button class="btn btn-sm btn-ghost btn-danger" type="button" aria-label="Delete debate"
+              hx-delete="{{ url_for('delete_debate_action', debate_id=debate.id) }}"
+              hx-confirm="Delete this debate and its transcript?">{{ icon("trash", "icon-sm") }}</button>
+      {% endif %}
+    </div>
+  </div>
+  <h1 class="topic">{{ debate.topic }}</h1>
+  <div class="row" style="flex-wrap:wrap; --gap:16px">
+    <span class="pill pill-{{ debate.status|status_class }}">{{ debate.status|status_label }}</span>
+    <div class="progress" role="progressbar" aria-label="Debate progress"
+         aria-valuemin="0" aria-valuemax="{{ debate.max_rounds }}" aria-valuenow="{{ debate.current_round }}">
+      {% for n in range(1, debate.max_rounds + 1) %}
+        {% set done = n < debate.current_round or (n == debate.current_round and not debate.status.is_active and debate.status == DebateStatus.COMPLETED) %}
+        <span class="progress-seg {{ 'done' if done }} {{ 'current' if n == debate.current_round and debate.status.is_active }}"></span>
+      {% endfor %}
+      <span class="progress-label">
+        {% if debate.status == DebateStatus.PENDING %}Waiting to start
+        {% elif debate.status.is_active and live and live.summary_text is not none %}Moderator is writing the report
+        {% else %}Round {{ debate.current_round }} of {{ debate.max_rounds }}{% endif %}
+      </span>
+    </div>
+    <span class="meta-item faint" style="font-size:13px">{{ icon("clock", "icon-sm") }} <time datetime="{{ debate.created_at|isodate }}">Started {{ debate.created_at|timeago }}</time></span>
+  </div>
+  {% if debate.status == DebateStatus.FAILED and debate.error %}
+  <div class="alert alert-danger" role="alert" style="margin-top:18px">{{ icon("alert") }}<div>{{ debate.error }}</div></div>
+  {% endif %}
+</section>

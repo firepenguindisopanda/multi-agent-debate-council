@@ -1,17 +1,19 @@
-FROM python:3.14-slim
+FROM python:3.13-slim
 
-RUN apt-get update \
-    && apt-get install -y curl \
-    && rm -rf /var/lib/apt/lists/*
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
 
-COPY ./pyproject.toml ./
-COPY ./README.md ./
-COPY ./app /app
+WORKDIR /code
 
+COPY pyproject.toml README.md alembic.ini ./
+COPY app ./app
+COPY migrations ./migrations
 RUN pip install .
 
-WORKDIR /app
+RUN useradd --create-home appuser && chown -R appuser /code
+USER appuser
 
-ENTRYPOINT ["python"]
-
-CMD ["-m", "app.main"]
+EXPOSE 8000
+# One worker: live debates and their event streams are held in process memory.
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--proxy-headers"]

@@ -1,11 +1,14 @@
-from sqlmodel import Session, select, func
-from app.models.user import UserBase, User
-from typing import Optional, Tuple
-from app.utilities.pagination import Pagination
-from app.schemas.user import UserUpdate
 import logging
+from typing import Optional, Tuple
+
+from sqlmodel import Session, func, select
+
+from app.models.user import User, UserBase
+from app.schemas.user import UserUpdate
+from app.utilities.pagination import Pagination
 
 logger = logging.getLogger(__name__)
+
 
 class UserRepository:
     def __init__(self, db: Session):
@@ -23,7 +26,9 @@ class UserRepository:
             self.db.rollback()
             raise
 
-    def search_users(self, query: str, page:int=1, limit:int=10) -> Tuple[list[User], Pagination]:
+    def search_users(
+        self, query: str, page: int = 1, limit: int = 10
+    ) -> Tuple[list[User], Pagination]:
         offset = (page - 1) * limit
         db_qry = select(User)
         if query:
@@ -47,7 +52,7 @@ class UserRepository:
     def get_all_users(self) -> list[User]:
         return self.db.exec(select(User)).all()
 
-    def update_user(self, user_id:int, user_data: UserUpdate)->User:
+    def update_user(self, user_id: int, user_data: UserUpdate) -> User:
         user = self.db.get(User, user_id)
         if not user:
             raise Exception("Invalid user id given")
@@ -55,7 +60,7 @@ class UserRepository:
             user.username = user_data.username
         if user_data.email:
             user.email = user_data.email
-        
+
         try:
             self.db.add(user)
             self.db.commit()

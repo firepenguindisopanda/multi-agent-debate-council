@@ -1,0 +1,2 @@
+{# expects `agent`, optional `size` #}
+<span class="avatar {{ 'avatar-' ~ size if size }} agent-{{ agent.role|role_slug }}" title="{{ agent.name }}" aria-hidden="true">{{ agent.avatar or agent.name[:1] }}</span>
