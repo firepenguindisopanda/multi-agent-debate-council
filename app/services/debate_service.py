@@ -1,4 +1,5 @@
 from app.models import Agent, Debate, DebateStatus, User
+from app.models.debate import utcnow
 from app.repositories.debate import AgentRepository, DebateRepository
 from app.services.debate_runner import DebateRunner
 from app.services.errors import (
@@ -70,11 +71,13 @@ class DebateService:
         debate = self.get_for_user(user, debate_id)
         if not debate.status.is_active:
             raise ConflictError("This debate has already finished.")
-        if not await self.runner.stop(debate_id):
-            # Not running in this process (e.g. queued before a restart): close it directly.
-            debate.status = DebateStatus.STOPPED
-            self.debates.save(debate)
+        await self.runner.stop(debate_id)
         self.debates.db.refresh(debate)
+        if debate.status.is_active:
+            # The engine never started (still queued, or lost in a restart): close it here.
+            debate.status = DebateStatus.STOPPED
+            debate.completed_at = utcnow()
+            self.debates.save(debate)
         return debate
 
     async def delete(self, user: User, debate_id: int) -> None:

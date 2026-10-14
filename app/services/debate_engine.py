@@ -5,6 +5,7 @@ import asyncio
 import logging
 from typing import Callable
 
+from sqlalchemy import inspect
 from sqlmodel import Session, select
 
 from app.config import Settings
@@ -157,14 +158,19 @@ class DebateEngine:
 
     @staticmethod
     def _commit(db: Session, obj) -> None:
+        # No refresh: it would open a new transaction and hold a connection while the
+        # model streams. expire_on_commit=False keeps the in-memory state valid.
         db.add(obj)
         db.commit()
-        db.refresh(obj)
 
     def _close_partial(self, db: Session, message: Message | None) -> None:
-        if message is None:
+        """Reset the session after an interruption and keep whatever was said so far."""
+        text = message.content if message is not None else ""
+        db.rollback()  # clears a failed transaction; expires (reloads) all objects
+        if message is None or not inspect(message).persistent:
             return
-        if message.content.strip():
+        if text.strip():
+            message.content = text
             message.status = MessageStatus.COMPLETE
             message.updated_at = utcnow()
             db.add(message)

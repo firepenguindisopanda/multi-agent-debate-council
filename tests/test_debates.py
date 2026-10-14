@@ -83,3 +83,17 @@ def test_delete_removes_debate(auth_client):
     wait_for(auth_client, debate_id)
     assert auth_client.delete(f"/api/debates/{debate_id}").status_code == 204
     assert auth_client.get(f"/api/debates/{debate_id}").status_code == 404
+
+
+def test_stop_while_queued_marks_debate_stopped(client, fake_llm):
+    fake_llm.delay = 0.02
+    app.state.runner = DebateRunner(llm=fake_llm, max_concurrent=1)
+    register_and_login(client)
+    running = create(client, rounds=3).json()["id"]
+    queued = create(client, rounds=3).json()["id"]
+    wait_for(client, running, statuses=("in_progress",))
+    assert client.get(f"/api/debates/{queued}").json()["status"] == "pending"
+
+    r = client.post(f"/api/debates/{queued}/stop")
+    assert r.status_code == 200 and r.json()["status"] == "stopped"
+    client.post(f"/api/debates/{running}/stop")

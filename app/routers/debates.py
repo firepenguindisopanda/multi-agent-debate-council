@@ -9,7 +9,7 @@ from fastapi.responses import (
     StreamingResponse,
 )
 
-from app.dependencies import AuthDep, DebateServiceDep, RunnerDep
+from app.dependencies import AuthDep, DebateServiceDep, RunnerDep, SessionDep
 from app.models import DebateStatus
 from app.services import prompts
 from app.services.debate_service import MAX_ROUNDS
@@ -138,9 +138,17 @@ async def debate_view(
 
 @router.get("/debates/{debate_id}/events")
 async def debate_events(
-    request: Request, debate_id: int, user: AuthDep, service: DebateServiceDep, runner: RunnerDep
+    request: Request,
+    debate_id: int,
+    user: AuthDep,
+    service: DebateServiceDep,
+    runner: RunnerDep,
+    db: SessionDep,
 ):
     service.get_for_user(user, debate_id)  # authorisation
+    # The request session lives until the response ends; release its connection now
+    # rather than holding it for the whole (possibly minutes-long) stream.
+    db.close()
     return StreamingResponse(
         debate_event_stream(request, debate_id, runner),
         media_type="text/event-stream",

@@ -22,8 +22,10 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     """Upgrade schema."""
     # SQLite stores enums as plain VARCHAR; Postgres needs the new label added.
+    # Postgres < 12 can't add enum values inside a transaction.
     if op.get_bind().dialect.name == "postgresql":
-        op.execute("ALTER TYPE debatestatus ADD VALUE IF NOT EXISTS 'FAILED'")
+        with op.get_context().autocommit_block():
+            op.execute("ALTER TYPE debatestatus ADD VALUE IF NOT EXISTS 'FAILED'")
 
     with op.batch_alter_table("debate", schema=None) as batch_op:
         batch_op.add_column(sa.Column("summary", sa.Text(), nullable=True))

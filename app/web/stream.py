@@ -4,6 +4,7 @@ Every `update` event carries out-of-band swaps (hx-swap-oob) that patch specific
 regions of the debate page; the final `done` event tells htmx to close the stream."""
 
 import asyncio
+from dataclasses import replace
 from typing import AsyncIterator
 
 from fastapi import Request
@@ -79,70 +80,84 @@ def render_regions(ctx: dict) -> str:
     )
 
 
-def _render_event(event: DebateEvent, request: Request, db: Session, runner: DebateRunner) -> str:
+def _render_event(event: DebateEvent, request: Request, runner: DebateRunner) -> str:
     if isinstance(event, TokenDelta):
         return _append_text(f"#msg-{event.message_id}-body", event.text)
     if isinstance(event, SummaryDelta):
         return _append_text("#summary-stream", event.text)
 
-    db.expire_all()
-    debate = db.get(Debate, event.debate_id)
-    live = runner.live_state(event.debate_id)
-    ctx = page_context(request, debate, live)
-    header = _oob(render("debates/_header.html", **ctx))
-    council = _oob(render("debates/_council.html", **ctx))
-    if isinstance(event, StatusChanged):
-        section = render(
-            "debates/_round.html", **ctx, round_number=event.current_round, messages=[]
-        )
-        return header + council + f'<div hx-swap-oob="beforeend:#transcript">{section}</div>'
-    if isinstance(event, MessageStarted):
-        message = db.get(Message, event.message_id)
-        card = render("debates/_message.html", **ctx, message=message, streaming=True)
-        return (
-            council
-            + f'<div hx-swap-oob="beforeend:#round-{message.round_number}-messages">{card}</div>'
-        )
-    if isinstance(event, MessageCompleted):
-        message = db.get(Message, event.message_id)
-        return council + _oob(
-            render("debates/_message.html", **ctx, message=message, streaming=False)
-        )
-    if isinstance(event, (SummaryStarted, DebateFinished)):
-        return header + council + _oob(render("debates/_summary.html", **ctx))
+    with Session(engine) as db:
+        debate = db.get(Debate, event.debate_id)
+        if debate is None:
+            return ""
+        live = runner.live_state(event.debate_id)
+        if isinstance(event, (MessageStarted, SummaryStarted)) and live is not None:
+            # Render the new region empty: this subscriber's queued deltas will fill it.
+            live = replace(live, message_text="", summary_text="")
+        ctx = page_context(request, debate, live)
+        header = _oob(render("debates/_header.html", **ctx))
+        council = _oob(render("debates/_council.html", **ctx))
+
+        if isinstance(event, StatusChanged):
+            section = render(
+                "debates/_round.html", **ctx, round_number=event.current_round, messages=[]
+            )
+            return (
+                header
+                + council
+                + '<div id="transcript-waiting" hx-swap-oob="delete"></div>'
+                + f'<div hx-swap-oob="beforeend:#transcript">{section}</div>'
+            )
+        if isinstance(event, (MessageStarted, MessageCompleted)):
+            message = db.get(Message, event.message_id)
+            if message is None:  # an empty message removed when the debate stopped
+                return council
+            streaming = isinstance(event, MessageStarted)
+            card = render("debates/_message.html", **ctx, message=message, streaming=streaming)
+            if streaming:
+                target = f"beforeend:#round-{message.round_number}-messages"
+                return council + f'<div hx-swap-oob="{target}">{card}</div>'
+            return council + _oob(card)
+        if isinstance(event, (SummaryStarted, DebateFinished)):
+            return header + council + _oob(render("debates/_summary.html", **ctx))
     return ""
+
+
+def _render_snapshot(request: Request, debate_id: int, live: LiveState | None) -> str | None:
+    with Session(engine) as db:
+        debate = db.get(Debate, debate_id)
+        if debate is None:
+            return None
+        return render_regions(page_context(request, debate, live))
 
 
 async def debate_event_stream(
     request: Request, debate_id: int, runner: DebateRunner
 ) -> AsyncIterator[str]:
     # Subscribe and snapshot without awaiting in between, so no event can slip through.
+    # Each render uses a short-lived session so no DB connection is held while waiting.
     queue = runner.subscribe(debate_id)
     try:
-        with Session(engine, expire_on_commit=False) as db:
-            debate = db.get(Debate, debate_id)
-            if debate is None:
-                yield sse("done")
-                return
-            yield sse(
-                "update",
-                render_regions(page_context(request, debate, runner.live_state(debate_id))),
-            )
-            if not runner.is_running(debate_id):
-                yield sse("done")
-                return
-            while True:
-                try:
-                    event = await asyncio.wait_for(queue.get(), HEARTBEAT_SECONDS)
-                except asyncio.TimeoutError:
-                    yield ": keep-alive\n\n"
-                    continue
-                if event is None:
-                    break
-                yield sse("update", _render_event(event, request, db, runner))
-            db.expire_all()
-            debate = db.get(Debate, debate_id)
-            yield sse("update", render_regions(page_context(request, debate, None)))
+        snapshot = _render_snapshot(request, debate_id, runner.live_state(debate_id))
+        if snapshot is None:
             yield sse("done")
+            return
+        yield sse("update", snapshot)
+        if not runner.is_running(debate_id):
+            yield sse("done")
+            return
+        while True:
+            try:
+                event = await asyncio.wait_for(queue.get(), HEARTBEAT_SECONDS)
+            except asyncio.TimeoutError:
+                yield ": keep-alive\n\n"
+                continue
+            if event is None:
+                break
+            yield sse("update", _render_event(event, request, runner))
+        final = _render_snapshot(request, debate_id, None)
+        if final is not None:
+            yield sse("update", final)
+        yield sse("done")
     finally:
         runner.unsubscribe(debate_id, queue)
