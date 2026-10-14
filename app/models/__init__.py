@@ -2,6 +2,7 @@
 from app.models.agent import Agent, AgentBase
 from app.models.debate import Debate, DebateBase, DebateStatus
 from app.models.debate_participant import DebateParticipant, DebateParticipantBase
+from app.models.debate_start import DebateStart
 from app.models.message import Message, MessageBase, MessageStatus
 from app.models.user import User, UserBase
 
@@ -13,6 +14,7 @@ __all__ = [
     "DebateStatus",
     "DebateParticipant",
     "DebateParticipantBase",
+    "DebateStart",
     "Message",
     "MessageBase",
     "MessageStatus",

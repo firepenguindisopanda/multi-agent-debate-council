@@ -406,7 +406,8 @@ p { margin: 0; }
 .agent-option .name { font-weight: 600; font-size: 14px; display: flex; gap: 8px; align-items: center; }
 .agent-option .desc { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
 .estimate { font-size: 13px; color: var(--text-muted); margin-top: 10px; }
-.form-footer { display: flex; justify-content: flex-end; align-items: center; gap: 16px; padding-top: 24px; border-top: 1px solid var(--border); }
+.form-footer { display: flex; justify-content: flex-end; align-items: center; gap: 16px; padding-top: 24px; border-top: 1px solid var(--border); flex-wrap: wrap; }
+.usage-note { margin-right: auto; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-muted); }
 
 /* ---------- Debate chamber ---------- */
 .chamber-head { padding: 28px 0 22px; border-bottom: 1px solid var(--border); margin-bottom: 28px; }

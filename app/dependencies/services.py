@@ -2,6 +2,7 @@ from typing import Annotated
 
 from fastapi import Depends, Request
 
+from app.config import get_settings
 from app.dependencies.session import SessionDep
 from app.repositories.debate import AgentRepository, DebateRepository
 from app.services.debate_runner import DebateRunner
@@ -13,7 +14,12 @@ def get_runner(request: Request) -> DebateRunner:
 
 
 def get_debate_service(request: Request, db: SessionDep) -> DebateService:
-    return DebateService(DebateRepository(db), AgentRepository(db), get_runner(request))
+    return DebateService(
+        DebateRepository(db),
+        AgentRepository(db),
+        get_runner(request),
+        daily_limit=get_settings().daily_debate_limit,
+    )
 
 
 RunnerDep = Annotated[DebateRunner, Depends(get_runner)]

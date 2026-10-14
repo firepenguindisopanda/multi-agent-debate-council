@@ -1,7 +1,17 @@
+from datetime import datetime
+
 from sqlalchemy import func
 from sqlmodel import Session, col, select
 
-from app.models import Agent, Debate, DebateParticipant, DebateStatus, Message, MessageStatus
+from app.models import (
+    Agent,
+    Debate,
+    DebateParticipant,
+    DebateStart,
+    DebateStatus,
+    Message,
+    MessageStatus,
+)
 from app.models.debate import utcnow
 
 
@@ -27,9 +37,19 @@ class DebateRepository:
             DebateParticipant(agent_id=agent.id, order=i) for i, agent in enumerate(agents)
         ]
         self.db.add(debate)
+        self.db.add(DebateStart(user_id=user_id))  # same transaction as the debate
         self.db.commit()
         self.db.refresh(debate)
         return debate
+
+    def starts_since(self, user_id: int, since: datetime) -> list[datetime]:
+        """When the user started debates since `since`, oldest first."""
+        stmt = (
+            select(DebateStart.created_at)
+            .where(DebateStart.user_id == user_id, DebateStart.created_at >= since)
+            .order_by(col(DebateStart.created_at))
+        )
+        return list(self.db.exec(stmt).all())
 
     def get(self, debate_id: int) -> Debate | None:
         return self.db.get(Debate, debate_id)

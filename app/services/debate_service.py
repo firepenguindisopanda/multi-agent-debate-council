@@ -1,3 +1,6 @@
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+
 from app.models import Agent, Debate, DebateStatus, User
 from app.models.debate import utcnow
 from app.repositories.debate import AgentRepository, DebateRepository
@@ -5,21 +8,67 @@ from app.services.debate_runner import DebateRunner
 from app.services.errors import (
     ConflictError,
     InvalidInputError,
+    LimitExceededError,
     NotFoundError,
     ProviderNotConfiguredError,
 )
+from app.utilities.timefmt import format_duration
 
 MIN_TOPIC_LENGTH = 10
 MAX_TOPIC_LENGTH = 500
 MIN_AGENTS = 2
 MAX_ROUNDS = 5
+LIMIT_WINDOW = timedelta(hours=24)
+
+
+@dataclass(frozen=True)
+class Usage:
+    """A user's debate starts within the rolling limit window."""
+
+    limit: int
+    used: int
+    next_available_at: datetime | None  # set only when the limit is reached
+
+    @property
+    def remaining(self) -> int:
+        return max(self.limit - self.used, 0)
 
 
 class DebateService:
-    def __init__(self, debates: DebateRepository, agents: AgentRepository, runner: DebateRunner):
+    def __init__(
+        self,
+        debates: DebateRepository,
+        agents: AgentRepository,
+        runner: DebateRunner,
+        daily_limit: int = 0,
+    ):
         self.debates = debates
         self.agents = agents
         self.runner = runner
+        self.daily_limit = daily_limit
+
+    def usage_for(self, user: User) -> Usage | None:
+        """None when the user has no limit (admins, or a limit of 0)."""
+        if self.daily_limit <= 0 or user.role == "admin":
+            return None
+        starts = self.debates.starts_since(user.id, utcnow() - LIMIT_WINDOW)
+        next_at = None
+        if len(starts) >= self.daily_limit:
+            # The next slot frees up when the oldest start that keeps us at the limit ages out.
+            next_at = starts[len(starts) - self.daily_limit] + LIMIT_WINDOW
+        return Usage(limit=self.daily_limit, used=len(starts), next_available_at=next_at)
+
+    def _check_limit(self, user: User) -> None:
+        usage = self.usage_for(user)
+        if usage is None or usage.next_available_at is None:
+            return
+        wait = usage.next_available_at - utcnow()
+        raise LimitExceededError(
+            f"You've started {usage.limit} debate{'s' if usage.limit != 1 else ''} "
+            "in the last 24 hours, the daily limit. "
+            f"You can start another in {format_duration(wait)}.",
+            retry_after_seconds=max(int(wait.total_seconds()), 1),
+        )
 
     def list_agents(self) -> list[Agent]:
         return self.agents.list_all()
@@ -41,6 +90,7 @@ class DebateService:
             raise ProviderNotConfiguredError(
                 "No model provider is configured. Set NVIDIA_API_KEY in .env and restart."
             )
+        self._check_limit(user)
         debate = self.debates.create(
             topic=topic, max_rounds=max_rounds, user_id=user.id, agents=agents
         )
