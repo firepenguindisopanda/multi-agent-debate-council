@@ -145,3 +145,9 @@ def downgrade() -> None:
 
     op.drop_table("agent")
     # ### end Alembic commands ###
+
+    # Postgres keeps enum types after their tables are dropped; remove them so a later
+    # upgrade can recreate them.
+    if op.get_bind().dialect.name == "postgresql":
+        op.execute("DROP TYPE IF EXISTS messagestatus")
+        op.execute("DROP TYPE IF EXISTS debatestatus")

@@ -51,7 +51,7 @@ All settings come from environment variables or `.env` (see `env.example`).
 | `LLM_MODEL` | `meta/llama-3.3-70b-instruct` | Any chat model in the NIM catalog. |
 | `NVIDIA_BASE_URL` | `https://integrate.api.nvidia.com/v1` | Point at a self-hosted NIM if you have one. |
 | `LLM_TEMPERATURE` / `LLM_MAX_TOKENS` / `LLM_SUMMARY_MAX_TOKENS` | `0.7` / `450` / `1200` | Per-turn and report length limits. |
-| `DATABASE_URI` | `sqlite:///database.db` | Postgres works too (`postgresql://...`). |
+| `DATABASE_URI` | `sqlite:///database.db` | Postgres works too (`postgresql://...`, psycopg 3). |
 | `SECRET_KEY` | random in dev | **Required in production.** Signs JWTs and sessions. |
 | `ENV` | `development` | `production` enables secure cookies and hides `/docs`. |
 | `MAX_CONCURRENT_DEBATES` | `4` | Debates beyond this wait in a queue. |
@@ -123,10 +123,17 @@ Interactive docs are at `/docs` when `ENV=development`.
 ## Development
 
 ```bash
-pytest            # 29 tests, ~5s, no network needed
+pytest            # 33 tests, ~5s, no network needed
 ruff check . && ruff format --check .
 alembic revision --autogenerate -m "describe change"   # after changing models
+TEST_DATABASE_URI=postgresql://user:pass@localhost/test_db pytest   # run the suite on Postgres
 ```
+
+[CI](.github/workflows/ci.yml) runs on every pull request and every push to `main`:
+- **Lint:** ruff check and format.
+- **Tests (SQLite):** on Python 3.11, 3.12 and 3.13, plus a migration round-trip (upgrade, `alembic check`, downgrade, upgrade).
+- **Postgres 16:** the same migration round-trip and the full test suite.
+- **Docker:** builds the image and smoke-tests it.
 
 The tests drive the real engine, runner, SSE stream and pages with a scripted `FakeLLM` (`tests/fakes.py`). The NIM client is tested against a mocked HTTP transport.
 

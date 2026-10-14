@@ -3,7 +3,8 @@ import tempfile
 
 _db_dir = tempfile.mkdtemp()
 os.environ.update(
-    DATABASE_URI=f"sqlite:///{_db_dir}/test.db",
+    # CI also runs the suite against Postgres by setting TEST_DATABASE_URI.
+    DATABASE_URI=os.environ.get("TEST_DATABASE_URI", f"sqlite:///{_db_dir}/test.db"),
     SECRET_KEY="test-secret-key-that-is-long-enough-for-hs256",
     ENV="test",
     AUTO_MIGRATE="false",
