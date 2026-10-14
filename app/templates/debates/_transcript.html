@@ -1,0 +1,9 @@
+<div class="transcript" id="transcript" aria-live="off">
+  {% for round_number, messages in rounds.items() %}
+    {% include "debates/_round.html" %}
+  {% else %}
+    {% if debate.status.is_active %}
+    <div class="card report-placeholder" id="transcript-waiting"><span class="spinner"></span> The council is taking their seats…</div>
+    {% endif %}
+  {% endfor %}
+</div>

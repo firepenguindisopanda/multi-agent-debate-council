@@ -1,0 +1,20 @@
+{% extends "auth/_layout.html" %}
+{% block title %}Sign in{% endblock %}
+{% block form %}
+<h1>Welcome back</h1>
+<p class="sub">Sign in to reconvene your council.</p>
+<form method="post" action="{{ url_for('login_action') }}" class="stack" novalidate>
+  <input type="hidden" name="next" value="{{ next }}">
+  {% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
+  <div class="field">
+    <label class="label" for="username">Username</label>
+    <input class="input" id="username" name="username" value="{{ username or '' }}" autocomplete="username" required autofocus>
+  </div>
+  <div class="field">
+    <label class="label" for="password">Password</label>
+    <input class="input" id="password" name="password" type="password" autocomplete="current-password" required>
+  </div>
+  <button class="btn btn-primary btn-lg btn-block" type="submit">Sign in</button>
+</form>
+<p class="auth-switch">New here? <a href="{{ url_for('register_view') }}">Create an account</a></p>
+{% endblock %}

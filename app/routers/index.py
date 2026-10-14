@@ -1,26 +1,27 @@
-from fastapi.responses import RedirectResponse
 from fastapi import Request, status
-from app.dependencies.auth import IsUserLoggedIn, get_current_user, is_admin
-from app.dependencies.session import SessionDep
-from . import router
+from fastapi.responses import HTMLResponse, RedirectResponse
+
+from app.dependencies import OptionalUserDep, SessionDep
+from app.repositories.debate import AgentRepository
+
+from . import router, templates
 
 
-@router.get("/", response_class=RedirectResponse)
-async def index_view(
-    request: Request,
-    user_logged_in: IsUserLoggedIn,
-    db: SessionDep
-):
-    if user_logged_in:
-        user = await get_current_user(request, db)
-        if await is_admin(user):
-            return RedirectResponse(url=request.url_for('admin_home_view'), status_code=status.HTTP_303_SEE_OTHER)
-        return RedirectResponse(url=request.url_for('user_home_view'), status_code=status.HTTP_303_SEE_OTHER)
-    response = RedirectResponse(url=request.url_for('login_view'), status_code=status.HTTP_303_SEE_OTHER)
-    response.delete_cookie(
-        key="access_token", 
-        httponly=True,
-        samesite="none",
-        secure=True
+@router.get("/", response_class=HTMLResponse)
+async def index_view(request: Request, user: OptionalUserDep, db: SessionDep):
+    if user:
+        return RedirectResponse(
+            url=request.url_for("debates_view"), status_code=status.HTTP_303_SEE_OTHER
+        )
+    return templates.TemplateResponse(
+        request=request,
+        name="landing.html",
+        context={"agents": AgentRepository(db).list_all()},
     )
-    return response
+
+
+@router.get("/app", include_in_schema=False)
+async def legacy_app_redirect(request: Request):
+    return RedirectResponse(
+        url=request.url_for("debates_view"), status_code=status.HTTP_301_MOVED_PERMANENTLY
+    )

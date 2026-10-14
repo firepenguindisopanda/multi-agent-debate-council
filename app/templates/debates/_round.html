@@ -1,0 +1,9 @@
+<section class="round" id="round-{{ round_number }}">
+  <div class="round-label"><span>Round {{ round_number }}{{ ' · Final' if round_number == debate.max_rounds and debate.max_rounds > 1 }}</span></div>
+  <div class="round-messages" id="round-{{ round_number }}-messages">
+    {% for message in messages %}
+      {% set streaming = live and live.message_id == message.id %}
+      {% include "debates/_message.html" %}
+    {% endfor %}
+  </div>
+</section>

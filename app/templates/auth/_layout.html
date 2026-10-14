@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="auth">
+  <aside class="auth-side">
+    <a class="brand" href="/"><span class="brand-mark"><span></span></span>Debate Council</a>
+    <div class="auth-quote">
+      <blockquote>“What does <em>fast</em> mean in terms of actual response time?”</blockquote>
+      <div class="row"><span class="avatar">📊</span><span>Business Analyst, round 1 — the question that saves a sprint.</span></div>
+    </div>
+    <p style="font-size:13px; color:rgba(240,238,232,.55)">Six specialists. One topic. A decision-ready report.</p>
+  </aside>
+  <main class="auth-main" id="main">
+    <div class="auth-form">{% block form %}{% endblock %}</div>
+  </main>
+</div>
+{% endblock %}

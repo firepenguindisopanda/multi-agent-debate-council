@@ -1,0 +1,43 @@
+{% from "partials/icons.html" import icon %}
+<div id="debate-list" class="debate-list"
+     {% if has_active %}hx-get="{{ url_for('debates_list_partial') }}" hx-trigger="every 4s" hx-include="#debate-filters" hx-swap="outerHTML"{% endif %}>
+  {% for debate in debates %}
+  <article class="card debate-card" id="debate-card-{{ debate.id }}">
+    <div class="grow">
+      <h3><a class="stretched" href="{{ url_for('debate_view', debate_id=debate.id) }}">{{ debate.topic }}</a></h3>
+      <div class="meta">
+        <span class="pill pill-{{ debate.status|status_class }}">{{ debate.status|status_label }}</span>
+        <span class="avatar-stack">
+          {% for p in debate.participants %}{% with agent = p.agent, size = "sm" %}{% include "partials/avatar.html" %}{% endwith %}{% endfor %}
+        </span>
+        <span class="meta-item">{{ icon("layers", "icon-sm") }} {{ debate.max_rounds }} round{{ 's' if debate.max_rounds != 1 }}</span>
+        <span class="meta-item">{{ icon("chat", "icon-sm") }} {{ message_counts.get(debate.id, 0) }} messages</span>
+        <span class="meta-item">{{ icon("clock", "icon-sm") }} <time datetime="{{ debate.created_at|isodate }}">{{ debate.created_at|timeago }}</time></span>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn btn-ghost btn-icon btn-danger" type="button" aria-label="Delete debate"
+              hx-delete="{{ url_for('delete_debate_action', debate_id=debate.id) }}"
+              hx-confirm="Delete this debate and its transcript?"
+              hx-target="#debate-card-{{ debate.id }}" hx-swap="outerHTML swap:300ms">{{ icon("trash", "icon-sm") }}</button>
+      <span class="btn btn-ghost btn-icon" aria-hidden="true">{{ icon("arrow-right", "icon-sm") }}</span>
+    </div>
+  </article>
+  {% else %}
+  <div class="empty">
+    <div class="orbit" aria-hidden="true">
+      <span class="avatar agent-ba" style="left:0;top:14px">📊</span>
+      <span class="avatar agent-dev" style="left:40px;top:0">💻</span>
+      <span class="avatar agent-po" style="left:80px;top:14px">🎯</span>
+    </div>
+    {% if q or status_filter %}
+      <h3>No matching debates</h3>
+      <p>Try a different search or clear the filters.</p>
+    {% else %}
+      <h3>The council is waiting</h3>
+      <p>Start your first debate: describe a feature or project and watch the specialists argue it out.</p>
+      <a class="btn btn-primary" href="{{ url_for('new_debate_view') }}">{{ icon("plus", "icon-sm") }} Start a debate</a>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>

@@ -1,0 +1,19 @@
+<aside class="council" id="council" aria-label="Council members">
+  <p class="eyebrow council-title">Council</p>
+  {% for p in debate.participants %}
+  {% set agent = p.agent %}
+  {% set speaking = speaking_id == agent.id %}
+  <div class="member agent-{{ agent.role|role_slug }} {{ 'speaking' if speaking }}">
+    {% include "partials/avatar.html" %}
+    <div class="grow">
+      <div class="name">{{ agent.name }}</div>
+      <div class="state">
+        {% if speaking %}Speaking…
+        {% elif spoke.get(agent.id) %}Spoke {{ spoke[agent.id] }}×
+        {% elif debate.status.is_active %}Waiting
+        {% else %}Did not speak{% endif %}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</aside>

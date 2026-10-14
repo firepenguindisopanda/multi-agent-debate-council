@@ -5,9 +5,6 @@ from app.models.debate_participant import DebateParticipant, DebateParticipantBa
 from app.models.message import Message, MessageBase, MessageStatus
 from app.models.user import User, UserBase
 
-# Configure relationships (must be after all models are imported)
-from app.models import relationships  # noqa: F401
-
 __all__ = [
     "Agent",
     "AgentBase",

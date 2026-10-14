@@ -4,6 +4,8 @@ This module contains the predefined agent templates with their system prompts.
 These agents represent the different specialist perspectives in a software development team.
 """
 
+from sqlmodel import Session, select
+
 from app.models.agent import Agent
 
 # System prompts define how each agent behaves in a debate
@@ -191,6 +193,10 @@ When debating, you might say things like:
 ]
 
 
-def get_seed_agents() -> list[Agent]:
-    """Return a list of Agent objects for seeding."""
-    return [Agent(**data) for data in AGENTS_DATA]
+def seed_agents(session: Session) -> list[Agent]:
+    """Insert any predefined agents that are missing (matched by name). Idempotent."""
+    existing = set(session.exec(select(Agent.name)).all())
+    added = [Agent(**data) for data in AGENTS_DATA if data["name"] not in existing]
+    session.add_all(added)
+    session.commit()
+    return added

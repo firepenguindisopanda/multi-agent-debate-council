@@ -1,0 +1,15 @@
+{% set agent = message.agent %}
+<article class="card msg agent-{{ agent.role|role_slug }} {{ 'streaming' if streaming }}" id="msg-{{ message.id }}">
+  {% include "partials/avatar.html" %}
+  <div>
+    <header class="msg-head">
+      <span class="name">{{ agent.name }}</span><span class="role-tag">{{ agent.role }}</span>
+      <time datetime="{{ message.created_at|isodate }}">{{ 'typing…' if streaming else message.created_at|timeago }}</time>
+    </header>
+    {% if streaming %}
+      <div class="prose msg-body stream" id="msg-{{ message.id }}-body">{{ live.message_text if live and live.message_id == message.id else message.content }}</div>
+    {% else %}
+      <div class="prose msg-body" id="msg-{{ message.id }}-body">{{ message.content|markdown }}</div>
+    {% endif %}
+  </div>
+</article>

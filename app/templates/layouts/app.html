@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% from "partials/icons.html" import icon %}
+{% block body %}
+<a class="sr-only" href="#main">Skip to content</a>
+<header class="topnav">
+  <div class="container">
+    <a class="brand" href="{{ url_for('debates_view') }}"><span class="brand-mark"><span></span></span><span class="brand-text">Debate Council</span></a>
+    <nav class="nav-links" aria-label="Main">
+      <a class="nav-link" href="{{ url_for('debates_view') }}" {% if request.url.path == '/debates' %}aria-current="page"{% endif %}>{{ icon("grid", "icon-sm") }}<span>Debates</span></a>
+      {% if user and user.role == "admin" %}
+      <a class="nav-link" href="{{ url_for('admin_home_view') }}" {% if request.url.path == '/admin' %}aria-current="page"{% endif %}>{{ icon("shield", "icon-sm") }}<span>Admin</span></a>
+      {% endif %}
+    </nav>
+    <div class="nav-right">
+      <a class="btn btn-primary btn-sm btn-collapse" href="{{ url_for('new_debate_view') }}" aria-label="New debate">{{ icon("plus", "icon-sm") }}<span>New debate</span></a>
+      <button class="btn btn-ghost btn-icon" type="button" data-theme-toggle aria-label="Toggle dark mode">{{ icon("moon") }}</button>
+      {% if user %}
+      <div class="user-chip" title="Signed in as {{ user.username }}"><span class="initial">{{ user.username[:1] }}</span><span class="uname">{{ user.username }}</span></div>
+      <form action="{{ url_for('logout') }}" method="post"><button class="btn btn-ghost btn-icon" aria-label="Sign out" title="Sign out">{{ icon("logout") }}</button></form>
+      {% endif %}
+    </div>
+  </div>
+</header>
+<main id="main">{% block main %}{% endblock %}</main>
+{% endblock %}
