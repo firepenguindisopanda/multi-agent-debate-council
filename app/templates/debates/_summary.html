@@ -20,4 +20,5 @@
   {% else %}
     <div class="report-placeholder">{{ icon("alert") }} No report — the debate ended before the moderator could summarise it.</div>
   {% endif %}
+  {% if run and not debate.status.is_active %}{% include "debates/_run_details.html" %}{% endif %}
 </section>

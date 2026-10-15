@@ -1,7 +1,7 @@
 from functools import lru_cache
 
 from app.config import get_settings
-from app.llm.base import ChatMessage, LLMClient, LLMError
+from app.llm.base import CallStats, ChatMessage, LLMClient, LLMError
 from app.llm.nim import NIMClient
 
 
@@ -15,7 +15,8 @@ def get_llm_client() -> LLMClient:
         temperature=s.llm_temperature,
         top_p=s.llm_top_p,
         timeout=s.llm_timeout_seconds,
+        max_retries=s.llm_max_retries,
     )
 
 
-__all__ = ["ChatMessage", "LLMClient", "LLMError", "NIMClient", "get_llm_client"]
+__all__ = ["CallStats", "ChatMessage", "LLMClient", "LLMError", "NIMClient", "get_llm_client"]

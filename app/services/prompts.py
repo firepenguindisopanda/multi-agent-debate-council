@@ -1,7 +1,19 @@
 """Prompt construction for council agents and the moderator."""
 
+import hashlib
+import re
+
 from app.llm import ChatMessage
 from app.models import Agent, Message
+
+# The moderator must produce exactly these sections, in this order.
+REPORT_SECTIONS = (
+    "Verdict",
+    "Agreed requirements",
+    "Open questions",
+    "Key risks",
+    "Recommended next steps",
+)
 
 TURN_RULES = """
 RULES FOR THIS DEBATE:
@@ -34,21 +46,59 @@ A short numbered list of the first actions the team should take.
 """
 
 
+OPENING_INSTRUCTION = (
+    "This is the opening round. State your position: the two or three issues that "
+    "matter most from your perspective, with concrete questions or proposals."
+)
+FINAL_INSTRUCTION = (
+    "This is the final round. Converge: say what you now agree with, what you still "
+    "dispute and why, and your single most important recommendation."
+)
+REBUTTAL_INSTRUCTION = (
+    "Respond directly to specific points other members made. Challenge weak assumptions, "
+    "concede good points and refine your proposals. Do not repeat your earlier remarks."
+)
+
+
 def _round_instruction(round_number: int, max_rounds: int) -> str:
     if round_number == 1:
-        return (
-            "This is the opening round. State your position: the two or three issues that "
-            "matter most from your perspective, with concrete questions or proposals."
-        )
+        return OPENING_INSTRUCTION
     if round_number == max_rounds:
-        return (
-            "This is the final round. Converge: say what you now agree with, what you still "
-            "dispute and why, and your single most important recommendation."
-        )
-    return (
-        "Respond directly to specific points other members made. Challenge weak assumptions, "
-        "concede good points and refine your proposals. Do not repeat your earlier remarks."
-    )
+        return FINAL_INSTRUCTION
+    return REBUTTAL_INSTRUCTION
+
+
+def prompt_version(agents: list[Agent]) -> str:
+    """Short hash of every prompt text a debate with these agents uses.
+
+    Stored on each debate so outputs and eval results can be tied to the exact prompts.
+    """
+    parts = [
+        TURN_RULES,
+        MODERATOR_PROMPT,
+        OPENING_INSTRUCTION,
+        REBUTTAL_INSTRUCTION,
+        FINAL_INSTRUCTION,
+    ]
+    parts += [f"{a.name}\n{a.system_prompt}" for a in sorted(agents, key=lambda a: a.name)]
+    return hashlib.sha256("\x1f".join(parts).encode()).hexdigest()[:12]
+
+
+_HEADING = re.compile(r"^#{1,6}\s+(.+?)\s*#*\s*$")
+
+
+def missing_report_sections(report: str) -> list[str]:
+    """Required sections that are absent or empty in a moderator report."""
+    bodies: dict[str, str] = {}
+    current = None
+    for line in report.splitlines():
+        heading = _HEADING.match(line.strip())
+        if heading:
+            current = heading.group(1).strip().lower()
+            bodies.setdefault(current, "")
+        elif current is not None:
+            bodies[current] += line.strip()
+    return [s for s in REPORT_SECTIONS if not bodies.get(s.lower())]
 
 
 def format_transcript(messages: list[Message]) -> str:

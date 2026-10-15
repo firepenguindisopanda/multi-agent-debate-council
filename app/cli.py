@@ -1,10 +1,13 @@
 """Management commands. Run with: python -m app.cli --help"""
 
+import asyncio
+
 import typer
 from sqlmodel import select
 
 from app.data import seed_agents as _seed_agents
 from app.database import get_cli_session, run_migrations
+from app.llm.check import run_check
 from app.models import Agent
 from app.repositories.user import UserRepository
 from app.schemas.user import AdminCreate
@@ -34,6 +37,15 @@ def list_agents():
     with get_cli_session() as db:
         for agent in db.exec(select(Agent).order_by(Agent.id)).all():
             typer.echo(f"{agent.avatar or '•'}  {agent.name} ({agent.role}) - {agent.description}")
+
+
+@cli.command("nim-check")
+def nim_check(
+    model: str = typer.Option(None, help="Model to test instead of LLM_MODEL."),
+):
+    """Make one small live call to NVIDIA NIM and list judge-model candidates."""
+    ok = asyncio.run(run_check(model, typer.echo))
+    raise typer.Exit(0 if ok else 1)
 
 
 @cli.command("create-admin")

@@ -46,8 +46,24 @@ class DebateListItem(SQLModel):
     completed_at: Optional[datetime] = None
 
 
+class RunStatsRead(SQLModel):
+    calls: int
+    failed_calls: int
+    input_tokens: Optional[int] = None
+    output_tokens: Optional[int] = None
+    truncated_calls: int
+    retries: int
+    model_seconds: float
+    avg_turn_ttft_ms: Optional[int] = None
+
+
 class DebateDetail(DebateListItem):
     summary: Optional[str] = None
     error: Optional[str] = None
     participants: list[ParticipantRead]
     messages: list[MessageRead]
+    llm_model: Optional[str] = None
+    llm_temperature: Optional[float] = None
+    llm_top_p: Optional[float] = None
+    prompt_version: Optional[str] = None
+    run: Optional[RunStatsRead] = None

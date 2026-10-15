@@ -494,6 +494,13 @@ p { margin: 0; }
 .skeleton i:nth-child(2) { width: 85%; } .skeleton i:nth-child(3) { width: 60%; }
 @keyframes shimmer { to { background-position: -200% 0; } }
 
+.run-details { border-top: 1px solid var(--border); padding: 14px 24px 18px; font-size: 13px; }
+.run-details summary { cursor: pointer; color: var(--text-muted); font-weight: 600; }
+.run-details summary:hover { color: var(--text); }
+.run-details dl { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px 24px; margin: 14px 0 0; }
+.run-details dt { color: var(--text-faint); font-size: 12px; }
+.run-details dd { margin: 2px 0 0; color: var(--text); overflow-wrap: anywhere; }
+
 .follow-btn { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 30; box-shadow: var(--shadow-lg); }
 .follow-btn[hidden] { display: none; }
 

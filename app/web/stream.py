@@ -13,6 +13,7 @@ from sqlmodel import Session
 
 from app.database import engine
 from app.models import Debate, Message
+from app.services import run_stats
 from app.services.debate_events import (
     DebateEvent,
     DebateFinished,
@@ -65,6 +66,7 @@ def page_context(request: Request, debate: Debate, live: LiveState | None) -> di
         "live": live,
         "speaking_id": speaking_id,
         "spoke": spoke,
+        "run": None if debate.status.is_active else run_stats.summarize(debate),
     }
 
 

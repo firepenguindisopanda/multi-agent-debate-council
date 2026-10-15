@@ -3,15 +3,16 @@ moderator writes the consensus report. Progress is persisted and published as ev
 
 import asyncio
 import logging
-from typing import Callable
+from dataclasses import asdict
+from typing import AsyncIterator, Callable
 
 from sqlalchemy import inspect
 from sqlmodel import Session, select
 
 from app.config import Settings
 from app.database import engine as db_engine
-from app.llm import ChatMessage, LLMClient, LLMError
-from app.models import Debate, DebateStatus, Message, MessageStatus
+from app.llm import CallStats, ChatMessage, LLMClient, LLMError
+from app.models import Agent, Debate, DebateStatus, LLMCall, LLMCallKind, Message, MessageStatus
 from app.models.debate import utcnow
 from app.services import prompts
 from app.services.debate_events import (
@@ -59,6 +60,7 @@ class DebateEngine:
             current: Message | None = None
             try:
                 debate.status = DebateStatus.IN_PROGRESS
+                self._record_provenance(debate, council)
                 for round_number in range(1, debate.max_rounds + 1):
                     debate.current_round = round_number
                     self._commit(db, debate)
@@ -90,6 +92,7 @@ class DebateEngine:
 
                 self.publish(SummaryStarted(debate_id))
                 debate.summary = await self._stream_summary(
+                    db,
                     debate_id,
                     prompts.build_moderator_turn(
                         topic=debate.topic,
@@ -97,6 +100,9 @@ class DebateEngine:
                         transcript=self._transcript(db, debate_id),
                     ),
                 )
+                missing = prompts.missing_report_sections(debate.summary)
+                if missing:
+                    logger.warning("Debate %s report is missing sections: %s", debate_id, missing)
                 self._finish(db, debate, DebateStatus.COMPLETED)
             except asyncio.CancelledError:
                 self._close_partial(db, current)
@@ -115,7 +121,14 @@ class DebateEngine:
         loop = asyncio.get_running_loop()
         last_publish = last_persist = loop.time()
         pending = ""
-        async for delta in self.llm.stream_chat(turn, max_tokens=self.settings.llm_max_tokens):
+        async for delta in self._llm_call(
+            db,
+            message.debate_id,
+            LLMCallKind.TURN,
+            turn,
+            max_tokens=self.settings.llm_max_tokens,
+            message_id=message.id,
+        ):
             message.content += delta
             pending += delta
             now = loop.time()
@@ -130,12 +143,16 @@ class DebateEngine:
         if not message.content.strip():
             message.content = "_(No response.)_"
 
-    async def _stream_summary(self, debate_id: int, turn: list[ChatMessage]) -> str:
+    async def _stream_summary(self, db: Session, debate_id: int, turn: list[ChatMessage]) -> str:
         loop = asyncio.get_running_loop()
         last_publish = loop.time()
         text, pending = "", ""
-        async for delta in self.llm.stream_chat(
-            turn, max_tokens=self.settings.llm_summary_max_tokens
+        async for delta in self._llm_call(
+            db,
+            debate_id,
+            LLMCallKind.SUMMARY,
+            turn,
+            max_tokens=self.settings.llm_summary_max_tokens,
         ):
             text += delta
             pending += delta
@@ -145,6 +162,73 @@ class DebateEngine:
         if pending:
             self.publish(SummaryDelta(debate_id, pending))
         return text.strip()
+
+    async def _llm_call(
+        self,
+        db: Session,
+        debate_id: int,
+        kind: LLMCallKind,
+        turn: list[ChatMessage],
+        *,
+        max_tokens: int,
+        message_id: int | None = None,
+    ) -> AsyncIterator[str]:
+        """Stream one completion and record an LLMCall row however it ends."""
+        stats = CallStats()
+        error = None
+        try:
+            async for delta in self.llm.stream_chat(turn, max_tokens=max_tokens, stats=stats):
+                yield delta
+        except BaseException as e:  # includes cancellation, which is recorded too
+            error = type(e).__name__
+            raise
+        finally:
+            # A failed turn's message may be deleted if it's empty, so don't link to it.
+            self._record_call(db, debate_id, kind, stats, message_id if not error else None, error)
+
+    def _record_call(
+        self,
+        db: Session,
+        debate_id: int,
+        kind: LLMCallKind,
+        stats: CallStats,
+        message_id: int | None,
+        error: str | None,
+    ) -> None:
+        logger.info(
+            "llm_call debate=%s kind=%s model=%s input_tokens=%s output_tokens=%s finish=%s "
+            "ttft_ms=%s duration_ms=%s retries=%s error=%s",
+            debate_id,
+            kind.value,
+            stats.response_model or stats.request_model,
+            stats.input_tokens,
+            stats.output_tokens,
+            stats.finish_reason,
+            stats.time_to_first_chunk_ms,
+            stats.duration_ms,
+            stats.retries,
+            error,
+        )
+        if stats.finish_reason == "length":
+            logger.warning("Debate %s %s was cut off by max_tokens", debate_id, kind.value)
+        call = LLMCall(
+            debate_id=debate_id, message_id=message_id, kind=kind, error=error, **asdict(stats)
+        )
+        try:
+            self._commit(db, call)
+        except Exception:
+            # Metrics must never take a debate down with them.
+            logger.exception("Could not record LLM call for debate %s", debate_id)
+            db.rollback()
+
+    def _record_provenance(self, debate: Debate, council: list[Agent]) -> None:
+        s = self.settings
+        debate.llm_model = getattr(self.llm, "model", s.llm_model)
+        debate.llm_temperature = getattr(self.llm, "temperature", s.llm_temperature)
+        debate.llm_top_p = getattr(self.llm, "top_p", s.llm_top_p)
+        debate.llm_max_tokens = s.llm_max_tokens
+        debate.llm_summary_max_tokens = s.llm_summary_max_tokens
+        debate.prompt_version = prompts.prompt_version(council)
 
     @staticmethod
     def _transcript(db: Session, debate_id: int) -> list[Message]:

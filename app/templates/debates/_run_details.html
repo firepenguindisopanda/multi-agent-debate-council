@@ -1,0 +1,15 @@
+{# expects `debate` and `run` (RunStats) #}
+<details class="run-details">
+  <summary>Run details</summary>
+  <dl>
+    <div><dt>Model</dt><dd class="mono">{{ debate.llm_model or "unknown" }}</dd></div>
+    <div><dt>Prompt version</dt><dd class="mono">{{ debate.prompt_version or "unknown" }}</dd></div>
+    <div><dt>Sampling</dt><dd>temperature {{ debate.llm_temperature }}, top_p {{ debate.llm_top_p }}</dd></div>
+    <div><dt>Model calls</dt><dd>{{ run.calls }}{% if run.failed_calls %} ({{ run.failed_calls }} failed){% endif %}</dd></div>
+    <div><dt>Tokens in / out</dt><dd>{% if run.input_tokens is not none %}{{ "{:,}".format(run.input_tokens) }} / {{ "{:,}".format(run.output_tokens) }}{% else %}not reported by the provider{% endif %}</dd></div>
+    <div><dt>Cut off by length cap</dt><dd>{{ run.truncated_calls }}</dd></div>
+    <div><dt>Retries</dt><dd>{{ run.retries }}</dd></div>
+    <div><dt>Avg time to first token</dt><dd>{{ "%s ms"|format(run.avg_turn_ttft_ms) if run.avg_turn_ttft_ms is not none else "n/a" }}</dd></div>
+    <div><dt>Time waiting on the model</dt><dd>{{ run.model_seconds }} s</dd></div>
+  </dl>
+</details>

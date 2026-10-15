@@ -38,6 +38,8 @@ class Settings(BaseSettings):
     llm_max_tokens: int = 450
     llm_summary_max_tokens: int = 1200
     llm_timeout_seconds: float = 90.0
+    # Retries for rate limits, timeouts and 5xx before any text has streamed.
+    llm_max_retries: int = 2
     # Upper bound on debates running at the same time in this process.
     max_concurrent_debates: int = 4
     # Debates a non-admin user may start per rolling 24 hours (0 = unlimited).

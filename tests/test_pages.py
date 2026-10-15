@@ -53,7 +53,7 @@ def test_completed_page_shows_report_and_rendered_markdown(auth_client):
 
 
 def test_model_output_is_escaped(auth_client, fake_llm):
-    async def evil(messages, *, max_tokens):
+    async def evil(messages, *, max_tokens, stats=None):
         yield "<script>alert(1)</script> [x](javascript:alert(1))"
 
     fake_llm.stream_chat = evil

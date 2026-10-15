@@ -11,7 +11,7 @@ from fastapi.responses import (
 
 from app.dependencies import AuthDep, DebateServiceDep, RunnerDep, SessionDep
 from app.models import DebateStatus
-from app.services import prompts
+from app.services import prompts, run_stats
 from app.services.debate_service import MAX_ROUNDS
 from app.services.errors import ServiceError
 from app.utilities.flash import flash
@@ -183,6 +183,27 @@ async def delete_debate_action(
     return RedirectResponse(url, status_code=303)
 
 
+def _run_details_markdown(debate) -> str:
+    run = run_stats.summarize(debate)
+    if run is None:
+        return ""
+    tokens = (
+        f"{run.input_tokens:,} in / {run.output_tokens:,} out"
+        if run.input_tokens is not None
+        else "not reported"
+    )
+    return (
+        "\n## Run details\n\n"
+        f"- Model: {debate.llm_model} (temperature {debate.llm_temperature}, "
+        f"top_p {debate.llm_top_p})\n"
+        f"- Prompt version: {debate.prompt_version}\n"
+        f"- Model calls: {run.calls} ({run.failed_calls} failed, {run.retries} retries)\n"
+        f"- Tokens: {tokens}\n"
+        f"- Cut off by length cap: {run.truncated_calls}\n"
+        f"- Time waiting on the model: {run.model_seconds} s\n"
+    )
+
+
 @router.get("/debates/{debate_id}/export.md")
 async def export_debate(debate_id: int, user: AuthDep, service: DebateServiceDep):
     debate = service.get_for_user(user, debate_id)
@@ -192,6 +213,7 @@ async def export_debate(debate_id: int, user: AuthDep, service: DebateServiceDep
         f"- Status: {debate.status.value}\n- Rounds: {debate.max_rounds}\n- Council: {council}\n\n"
         f"## Council report\n\n{debate.summary or '_No report yet._'}\n\n"
         f"## Transcript\n\n{prompts.format_transcript(list(debate.messages))}\n"
+        f"{_run_details_markdown(debate)}"
     )
     return PlainTextResponse(
         body,

@@ -39,6 +39,7 @@ python -m app.cli migrate        # apply migrations
 python -m app.cli seed-agents    # add any missing council agents
 python -m app.cli list-agents
 python -m app.cli create-admin   # prompts for username, email, password
+python -m app.cli nim-check      # one live NIM call: token usage, timing, judge-model candidates
 ```
 
 ## Configuration
@@ -51,6 +52,7 @@ All settings come from environment variables or `.env` (see `env.example`).
 | `LLM_MODEL` | `meta/llama-3.3-70b-instruct` | Any chat model in the NIM catalog. |
 | `NVIDIA_BASE_URL` | `https://integrate.api.nvidia.com/v1` | Point at a self-hosted NIM if you have one. |
 | `LLM_TEMPERATURE` / `LLM_MAX_TOKENS` / `LLM_SUMMARY_MAX_TOKENS` | `0.7` / `450` / `1200` | Per-turn and report length limits. |
+| `LLM_MAX_RETRIES` | `2` | Retries for rate limits, timeouts and 5xx errors, only before any text has streamed. |
 | `DATABASE_URI` | `sqlite:///database.db` | Postgres works too (`postgresql://...`, psycopg 3). |
 | `SECRET_KEY` | random in dev | **Required in production.** Signs JWTs and sessions. |
 | `ENV` | `development` | `production` enables secure cookies and hides `/docs`. |
@@ -98,6 +100,12 @@ migrations/       Alembic migrations
 tests/            pytest suite (uses a scripted fake LLM; no network)
 ```
 
+### What every run records
+
+Each model call is stored as one `llm_call` row: input and output tokens, `finish_reason` (`length` means the turn was cut off by the token cap), time to first token, duration, retries, and the error if it failed or was stopped. Each debate also stores the model, sampling settings and a `prompt_version`, a hash of every prompt text it used, so any output can be traced back to exactly what produced it. The same numbers appear under **Run details** on a finished debate, in the Markdown export and in the API, and as one `llm_call` log line per call. Field names follow the OpenTelemetry GenAI conventions, so they can feed tracing later.
+
+Before your first real run, `python -m app.cli nim-check` confirms your key works, shows whether NIM reports token usage on streamed responses, and lists non-Llama models on your account that could serve as evaluation judges.
+
 ## JSON API
 
 Every page is backed by the same service layer that the API uses. Authenticate with the login cookie, or exchange credentials for a bearer token:
@@ -124,7 +132,7 @@ Interactive docs are at `/docs` when `ENV=development`.
 ## Development
 
 ```bash
-pytest            # 40 tests, ~8s, no network needed
+pytest            # 56 tests, ~12s, no network needed
 ruff check . && ruff format --check .
 alembic revision --autogenerate -m "describe change"   # after changing models
 TEST_DATABASE_URI=postgresql://user:pass@localhost/test_db pytest   # run the suite on Postgres

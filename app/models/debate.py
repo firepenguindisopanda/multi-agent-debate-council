@@ -7,6 +7,7 @@ from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
     from app.models.debate_participant import DebateParticipant
+    from app.models.llm_call import LLMCall
     from app.models.message import Message
 
 
@@ -45,6 +46,13 @@ class Debate(DebateBase, table=True):
     # Moderator's consensus report (markdown), written when the debate completes.
     summary: Optional[str] = Field(default=None, sa_column=Column(Text, nullable=True))
     error: Optional[str] = Field(default=None, max_length=1000)
+    # Provenance: what produced this debate's output, recorded when it starts.
+    llm_model: Optional[str] = Field(default=None, max_length=200)
+    llm_temperature: Optional[float] = None
+    llm_top_p: Optional[float] = None
+    llm_max_tokens: Optional[int] = None
+    llm_summary_max_tokens: Optional[int] = None
+    prompt_version: Optional[str] = Field(default=None, max_length=40)
 
     participants: list["DebateParticipant"] = Relationship(
         back_populates="debate",
@@ -56,4 +64,7 @@ class Debate(DebateBase, table=True):
     messages: list["Message"] = Relationship(
         back_populates="debate",
         sa_relationship_kwargs={"cascade": "all, delete-orphan", "order_by": "Message.id"},
+    )
+    llm_calls: list["LLMCall"] = Relationship(
+        sa_relationship_kwargs={"cascade": "all, delete-orphan", "order_by": "LLMCall.id"},
     )
